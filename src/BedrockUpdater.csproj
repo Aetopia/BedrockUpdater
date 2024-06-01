@@ -1,0 +1,45 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net481</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>latest</LangVersion>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <Optimize>true</Optimize>
+    <OptimizationPreference>Size</OptimizationPreference>
+    <PublishRelease>true</PublishRelease>
+
+    <ApplicationManifest>Resources/.manifest</ApplicationManifest>
+    <ApplicationIcon>Resources/.ico</ApplicationIcon>
+
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <AssemblyTitle>Bedrock Updater</AssemblyTitle>
+    <Product>Bedrock Updater</Product>
+    <Copyright>Copyright (C) 2024</Copyright>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
+    <GenerateAssemblyInformationalVersionAttribute>false</GenerateAssemblyInformationalVersionAttribute>
+  </PropertyGroup>
+
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources/GetExtendedUpdateInfo2.xml">
+      <LogicalName>GetExtendedUpdateInfo2.xml</LogicalName>
+    </EmbeddedResource>
+
+    <EmbeddedResource Include="Resources/GetCookie.xml">
+      <LogicalName>GetCookie.xml</LogicalName>
+    </EmbeddedResource>
+
+    <EmbeddedResource Include="Resources/SyncUpdates.xml">
+      <LogicalName>SyncUpdates.xml</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="System.Configuration" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Web.Extensions" />
+    <PackageReference Include="Microsoft.Windows.SDK.Contracts" Version="10.0.19041.2" />
+  </ItemGroup>
+</Project>
