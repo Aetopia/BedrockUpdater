@@ -110,7 +110,7 @@ class Store
             payload.TryGetValue("ShortTitle", out object value);
 
             products.Add(
-                new Product((string)(value ?? payload["Title"]),
+                new Product((string)(string.IsNullOrEmpty((string)value) ? payload["Title"] : value),
                 javaScriptSerializer.Deserialize<Dictionary<string, string>>(
                     (string)((Dictionary<string, object>)((ArrayList)payload["Skus"])[0])["FulfillmentData"])["WuCategoryId"]));
         }
@@ -156,7 +156,7 @@ class Store
             new Version(packageIdentity[1]) > new Version(package.Id.Version.Major, package.Id.Version.Minor, package.Id.Version.Build, package.Id.Version.Revision));
     }
 
-    internal async Task<IEnumerable<string>> SyncUpdates(IProduct product)
+    internal async Task<IEnumerable<string>> SyncUpdatesAsync(IProduct product)
     {
         await default(SynchronizationContextRemover);
 

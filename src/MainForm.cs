@@ -107,7 +107,7 @@ class MainForm : Form
                 label2.Text = "Checking...";
                 progressBar.Style = ProgressBarStyle.Marquee;
 
-                var updateIds = await store.SyncUpdates(product);
+                var updateIds = await store.SyncUpdatesAsync(product);
                 if (!updateIds.Any()) continue;
 
                 var count = updateIds.Count();
