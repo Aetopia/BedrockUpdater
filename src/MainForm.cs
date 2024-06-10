@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -7,7 +8,6 @@ using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using Windows.Foundation;
 using Windows.Management.Deployment;
-using Windows.System;
 
 class MainForm : Form
 {
@@ -131,7 +131,12 @@ class MainForm : Form
                 }
             }
 
-            await Launcher.LaunchUriAsync(new(preview ? "minecraft-preview://" : "minecraft://"));
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"),
+                Arguments = preview ? "minecraft-preview://" : "minecraft://",
+                UseShellExecute = false
+            }).Dispose();
             Close();
         };
     }
