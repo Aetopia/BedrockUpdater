@@ -2,10 +2,8 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -49,23 +47,6 @@ file class Update
     internal DateTime Modified;
 
     internal bool MainPackage;
-}
-
-file static class Resources
-{
-    static readonly Assembly assembly = Assembly.GetExecutingAssembly();
-
-    internal readonly static string GetCookie = ToString("GetCookie.xml");
-
-    internal readonly static string GetExtendedUpdateInfo2 = ToString("GetExtendedUpdateInfo2.xml");
-
-    internal readonly static string SyncUpdates = ToString("SyncUpdates.xml");
-
-    static string ToString(string name)
-    {
-        using StreamReader stream = new(assembly.GetManifestResourceStream(name));
-        return stream.ReadToEnd();
-    }
 }
 
 file struct SynchronizationContextRemover : INotifyCompletion
