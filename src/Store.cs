@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -22,18 +23,23 @@ interface IProduct
     string AppCategoryId { get; }
 }
 
-file struct Product(string title, string appCategoryId) : IProduct
+file class Product(string title, string appCategoryId) : IProduct
 {
-    public readonly string Title => title;
+    public string Title => title;
 
-    public readonly string AppCategoryId => appCategoryId;
+    public string AppCategoryId => appCategoryId;
 }
 
-file struct UpdateIdentity
+interface IUpdateIdentity
 {
-    internal string UpdateId;
+    string UpdateId { get; }
+}
 
-    internal bool MainPackage;
+file class UpdateIdentity(string updateId, bool mainPackage) : IUpdateIdentity
+{
+    public string UpdateId => updateId;
+
+    internal bool MainPackage => mainPackage;
 }
 
 file class Update
@@ -96,7 +102,7 @@ class Store
 
     static readonly string architecture = RuntimeInformation.OSArchitecture.ToString().ToLower();
 
-    internal async Task<IEnumerable<IProduct>> GetProductsAsync(params string[] productIds)
+    internal async Task<ReadOnlyCollection<IProduct>> GetProductsAsync(params string[] productIds)
     {
         await default(SynchronizationContextRemover);
 
@@ -115,7 +121,7 @@ class Store
                     (string)((Dictionary<string, object>)((ArrayList)payload["Skus"])[0])["FulfillmentData"])["WuCategoryId"]));
         }
 
-        return products;
+        return products.AsReadOnly();
     }
 
     static async Task<XmlDocument> PostAsSoapAsync(string content, bool secured = false)
@@ -137,11 +143,11 @@ class Store
         return new((await PostAsSoapAsync(Resources.GetCookie)).GetElementsByTagName("EncryptedData")[0].InnerText);
     }
 
-    internal async Task<string> GetUrlAsync(string updateId)
+    internal async Task<string> GetUrlAsync(IUpdateIdentity identity)
     {
         await default(SynchronizationContextRemover);
 
-        return (await PostAsSoapAsync(Resources.GetExtendedUpdateInfo2.Replace("{1}", updateId), true)).GetElementsByTagName("Url").Cast<XmlNode>().First(
+        return (await PostAsSoapAsync(Resources.GetExtendedUpdateInfo2.Replace("{1}", identity.UpdateId), true)).GetElementsByTagName("Url").Cast<XmlNode>().First(
             xmlNode => xmlNode.InnerText.StartsWith("http://tlu.dl.delivery.mp.microsoft.com")).InnerText;
     }
 
@@ -156,7 +162,7 @@ class Store
             new Version(packageIdentity[1]) > new Version(package.Id.Version.Major, package.Id.Version.Minor, package.Id.Version.Build, package.Id.Version.Revision));
     }
 
-    internal async Task<IEnumerable<string>> SyncUpdatesAsync(IProduct product)
+    internal async Task<ReadOnlyCollection<IUpdateIdentity>> SyncUpdatesAsync(IProduct product)
     {
         await default(SynchronizationContextRemover);
 
@@ -181,7 +187,7 @@ class Store
             }
         }
 
-        List<UpdateIdentity> updateIdentities = [];
+        List<IUpdateIdentity> identities = [];
         foreach (XmlNode xmlNode in syncUpdatesResult.GetElementsByTagName("SecuredFragment"))
         {
             var xmlElement = (XmlElement)xmlNode.ParentNode.ParentNode.ParentNode;
@@ -189,14 +195,11 @@ class Store
             if (update == null) continue;
 
             if (CheckUpdateAvailability(xmlElement.GetElementsByTagName("AppxMetadata")[0].Attributes["PackageMoniker"].InnerText))
-                updateIdentities.Add(new()
-                {
-                    UpdateId = xmlElement.GetElementsByTagName("UpdateIdentity")[0].Attributes["UpdateID"].InnerText,
-                    MainPackage = update.MainPackage
-                });
-            else if (update.MainPackage) return [];
+                identities.Add(new UpdateIdentity(xmlElement.GetElementsByTagName("UpdateIdentity")[0].Attributes["UpdateID"].InnerText, update.MainPackage));
+            else if (update.MainPackage) return new([]);
         }
+        identities.Sort((a, b) => ((UpdateIdentity)a).MainPackage ? 1 : -1);
 
-        return updateIdentities.OrderBy(updateIdentity => updateIdentity.MainPackage).Select(updateIdentity => updateIdentity.UpdateId);
+        return identities.AsReadOnly();
     }
 }

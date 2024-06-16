@@ -17,7 +17,7 @@ class MainForm : Form
 
     [DllImport("Shell32", CharSet = CharSet.Auto, SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    static extern int ShellMessageBox(IntPtr hAppInst = default, IntPtr hWnd = default, string lpcText = default, string lpcTitle = "Error", int fuStyle = 0x00000010);
+    static extern int ShellMessageBox(IntPtr hAppInst = default, IntPtr hWnd = default, string lpcText = default, string lpcTitle = "Bedrock Updater", int fuStyle = 0x00000010);
 
     internal MainForm(IEnumerable<string> args)
     {
@@ -77,7 +77,11 @@ class MainForm : Form
         Controls.Add(button);
 
         using WebClient webClient = new();
-        webClient.DownloadProgressChanged += (sender, e) => progressBar.Value = e.ProgressPercentage;
+        webClient.DownloadProgressChanged += (sender, e) =>
+        {
+            label2.Text = $"Downloading... ({(float)e.BytesReceived / 1024 / 1024:0.0} MB of {(float)e.TotalBytesToReceive / 1024 / 1024:0.0} MB)";
+            progressBar.Value = e.ProgressPercentage;
+        };
         webClient.DownloadFileCompleted += (sender, e) =>
         {
             label2.Text = "Installing...";
@@ -99,7 +103,7 @@ class MainForm : Form
         Shown += async (sender, e) =>
         {
             var store = await Store.CreateAsync();
-            var preview = args.FirstOrDefault()?.ToLowerInvariant().Equals("/preview") ?? false;
+            var preview = args.FirstOrDefault()?.Equals("/preview", StringComparison.OrdinalIgnoreCase) ?? false;
 
             foreach (var product in await store.GetProductsAsync("9wzdncrd1hkw", preview ? "9p5x4qvlc2xr" : "9nblggh2jhxj"))
             {
@@ -107,22 +111,18 @@ class MainForm : Form
                 label2.Text = "Checking...";
                 progressBar.Style = ProgressBarStyle.Marquee;
 
-                var updateIds = await store.SyncUpdatesAsync(product);
-                if (!updateIds.Any()) continue;
-
-                var count = updateIds.Count();
+                var identities = await store.SyncUpdatesAsync(product);
                 progressBar.Style = ProgressBarStyle.Blocks;
-
-                for (int i = 0; i < count; i++)
+                for (int i = 0; i < identities.Count; i++)
                 {
-                    label1.Text = $"Updating {product.Title}... ({i + 1} of {count})";
+                    label1.Text = $"Updating {product.Title}... ({i + 1} of {identities.Count})";
                     label2.Text = "Downloading...";
                     progressBar.Value = 0;
 
                     packageUri = new(Path.GetTempFileName());
                     try
                     {
-                        await webClient.DownloadFileTaskAsync(await store.GetUrlAsync(updateIds.ElementAt(i)), packageUri.AbsolutePath);
+                        await webClient.DownloadFileTaskAsync(await store.GetUrlAsync(identities[i]), packageUri.AbsolutePath);
                         deploymentOperation = packageManager.AddPackageAsync(packageUri, null, DeploymentOptions.ForceApplicationShutdown);
                         deploymentOperation.Progress += (sender, e) => progressBar.Value = (int)e.percentage;
                         await deploymentOperation;
