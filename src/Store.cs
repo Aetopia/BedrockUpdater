@@ -1,15 +1,11 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Net.Http;
-using System.Runtime.CompilerServices;
+using System.Net;
 using System.Runtime.InteropServices;
+using System.Runtime.Serialization.Json;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Web.Script.Serialization;
 using System.Xml;
 using Windows.Management.Deployment;
 using Windows.System.UserProfile;
@@ -28,10 +24,7 @@ file class Product(string title, string appCategoryId) : IProduct
     public string AppCategoryId => appCategoryId;
 }
 
-interface IUpdateIdentity
-{
-    string UpdateId { get; }
-}
+interface IUpdateIdentity { string UpdateId { get; } }
 
 file class UpdateIdentity(string updateId, bool mainPackage) : IUpdateIdentity
 {
@@ -49,105 +42,46 @@ file class Update
     internal bool MainPackage;
 }
 
-file struct SynchronizationContextRemover : INotifyCompletion
-{
-    internal readonly bool IsCompleted => SynchronizationContext.Current == null;
-
-    internal readonly SynchronizationContextRemover GetAwaiter() => this;
-
-    internal readonly void GetResult() { }
-
-    public readonly void OnCompleted(Action continuation)
-    {
-        var syncContext = SynchronizationContext.Current;
-        try
-        {
-            SynchronizationContext.SetSynchronizationContext(null);
-            continuation();
-        }
-        finally { SynchronizationContext.SetSynchronizationContext(syncContext); }
-    }
-}
-
 class Store
 {
-    readonly string syncUpdates;
-
-    static readonly JavaScriptSerializer javaScriptSerializer = new();
-
-    static readonly string requestUri = $"https://storeedgefd.dsx.mp.microsoft.com/v9.0/products/{{0}}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop";
-
-    static readonly HttpClient httpClient = new() { BaseAddress = new("https://fe3.delivery.mp.microsoft.com/ClientWebService/client.asmx/") };
-
-    static readonly PackageManager packageManager = new();
+    internal static readonly PackageManager PackageManager = new();
 
     static readonly string architecture = RuntimeInformation.OSArchitecture.ToString().ToLower();
 
-    internal async Task<ReadOnlyCollection<IProduct>> GetProductsAsync(params string[] productIds)
-    {
-        await default(SynchronizationContextRemover);
+    static readonly string address = $"https://storeedgefd.dsx.mp.microsoft.com/v9.0/products/{{0}}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop";
 
+    readonly WebClient webClient = new() { BaseAddress = "https://fe3.delivery.mp.microsoft.com/ClientWebService/client.asmx/" };
+
+    readonly string syncUpdates;
+
+    internal Store() { syncUpdates = Resources.SyncUpdates.Replace("{1}", Post(Resources.GetCookie).GetElementsByTagName("EncryptedData")[0].InnerText); }
+
+    internal IEnumerable<IProduct> GetProducts(params string[] productIds)
+    {
         List<IProduct> products = [];
         foreach (var productId in productIds)
         {
-            using var response = await httpClient.GetAsync(string.Format(requestUri, productId));
-            response.EnsureSuccessStatusCode();
+            var payload = Deserialize(webClient.DownloadString(string.Format(address, productId)))["Payload"];
+            var title = payload?["ShortTitle"]?.InnerText;
 
-            var payload = (Dictionary<string, object>)javaScriptSerializer.Deserialize<Dictionary<string, object>>(await response.Content.ReadAsStringAsync())["Payload"];
-            payload.TryGetValue("ShortTitle", out object value);
-
-            products.Add(
-                new Product((string)(string.IsNullOrEmpty((string)value) ? payload["Title"] : value),
-                javaScriptSerializer.Deserialize<Dictionary<string, string>>(
-                    (string)((Dictionary<string, object>)((ArrayList)payload["Skus"])[0])["FulfillmentData"])["WuCategoryId"]));
+            products.Add(new Product(
+                string.IsNullOrEmpty(title) ? payload["Title"].InnerText : title,
+                Deserialize(payload.GetElementsByTagName("FulfillmentData")[0].InnerText)["WuCategoryId"].InnerText));
         }
-
-        return products.AsReadOnly();
+        return products;
     }
 
-    static async Task<XmlDocument> PostAsSoapAsync(string content, bool secured = false)
+    internal string GetUrl(IUpdateIdentity identity)
     {
-        using var response = await httpClient.PostAsync(secured ? "secured" : null, new StringContent(content, Encoding.UTF8, "application/soap+xml"));
-        response.EnsureSuccessStatusCode();
-
-        XmlDocument xmlDocument = new();
-        xmlDocument.LoadXml((await response.Content.ReadAsStringAsync()).Replace("&lt;", "<").Replace("&gt;", ">"));
-        return xmlDocument;
+        return Post(Resources.GetExtendedUpdateInfo2.Replace("{1}", identity.UpdateId), true)
+        .GetElementsByTagName("Url")
+        .Cast<XmlNode>()
+        .First(xmlNode => xmlNode.InnerText.StartsWith("http://tlu.dl.delivery.mp.microsoft.com")).InnerText;
     }
 
-    Store(string encryptedData) { syncUpdates = Resources.SyncUpdates.Replace("{1}", encryptedData); }
-
-    internal static async Task<Store> CreateAsync()
+    internal ReadOnlyCollection<IUpdateIdentity> SyncUpdates(IProduct product)
     {
-        await default(SynchronizationContextRemover);
-
-        return new((await PostAsSoapAsync(Resources.GetCookie)).GetElementsByTagName("EncryptedData")[0].InnerText);
-    }
-
-    internal async Task<string> GetUrlAsync(IUpdateIdentity identity)
-    {
-        await default(SynchronizationContextRemover);
-
-        return (await PostAsSoapAsync(Resources.GetExtendedUpdateInfo2.Replace("{1}", identity.UpdateId), true)).GetElementsByTagName("Url").Cast<XmlNode>().First(
-            xmlNode => xmlNode.InnerText.StartsWith("http://tlu.dl.delivery.mp.microsoft.com")).InnerText;
-    }
-
-    static bool CheckUpdateAvailability(string packageFullName)
-    {
-        var packageIdentity = packageFullName.Split('_');
-        var package = packageManager.FindPackagesForUser(string.Empty, $"{packageIdentity.First()}_{packageIdentity.Last()}").FirstOrDefault();
-
-        return
-            package == null ||
-            (!package.IsDevelopmentMode &&
-            new Version(packageIdentity[1]) > new Version(package.Id.Version.Major, package.Id.Version.Minor, package.Id.Version.Build, package.Id.Version.Revision));
-    }
-
-    internal async Task<ReadOnlyCollection<IUpdateIdentity>> SyncUpdatesAsync(IProduct product)
-    {
-        await default(SynchronizationContextRemover);
-
-        var syncUpdatesResult = (XmlElement)(await PostAsSoapAsync(syncUpdates.Replace("{2}", product.AppCategoryId))).GetElementsByTagName("SyncUpdatesResult")[0];
+        var syncUpdatesResult = (XmlElement)Post(syncUpdates.Replace("{2}", product.AppCategoryId)).GetElementsByTagName("SyncUpdatesResult")[0];
 
         Dictionary<string, Update> updates = [];
         foreach (XmlNode xmlNode in syncUpdatesResult.GetElementsByTagName("AppxPackageInstallData"))
@@ -182,5 +116,32 @@ class Store
         identities.Sort((a, b) => ((UpdateIdentity)a).MainPackage ? 1 : -1);
 
         return identities.AsReadOnly();
+    }
+
+    static XmlElement Deserialize(string input)
+    {
+        using var reader = JsonReaderWriterFactory.CreateJsonReader(Encoding.UTF8.GetBytes(input), XmlDictionaryReaderQuotas.Max);
+        XmlDocument xml = new();
+        xml.Load(reader);
+        return xml["root"];
+    }
+
+    XmlDocument Post(string data, bool secured = false)
+    {
+        webClient.Headers["Content-Type"] = "application/soap+xml";
+        XmlDocument xmlDocument = new();
+        xmlDocument.LoadXml(webClient.UploadString(secured ? "secured" : string.Empty, data).Replace("&lt;", "<").Replace("&gt;", ">"));
+        return xmlDocument;
+    }
+
+    static bool CheckUpdateAvailability(string packageFullName)
+    {
+        var packageIdentity = packageFullName.Split('_');
+        var package = PackageManager.FindPackagesForUser(string.Empty, $"{packageIdentity.First()}_{packageIdentity.Last()}").FirstOrDefault();
+
+        return
+            package == null ||
+            (!package.IsDevelopmentMode &&
+            new Version(packageIdentity[1]) > new Version(package.Id.Version.Major, package.Id.Version.Minor, package.Id.Version.Build, package.Id.Version.Revision));
     }
 }

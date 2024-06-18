@@ -34,7 +34,7 @@ class MainWindow : Window
 
     internal MainWindow(IEnumerable<string> args)
     {
-        Dispatcher.UnhandledException += (sender, e) =>
+        Application.Current.Dispatcher.UnhandledException += (sender, e) =>
         {
             e.Handled = true;
             var exception = e.Exception;
@@ -108,8 +108,10 @@ class MainWindow : Window
         Grid.SetRow(textBlock2, 0);
         grid.Children.Add(textBlock2);
 
-        using WebClient webClient = new();
         string value = default;
+        Uri packageUri = default;
+        using WebClient webClient = new();
+        IAsyncOperationWithProgress<DeploymentResult, DeploymentProgress> deploymentOperation = default;
 
         webClient.DownloadProgressChanged += (sender, e) => Dispatcher.Invoke(() =>
         {
@@ -124,25 +126,21 @@ class MainWindow : Window
             textBlock1.Text = "Installing...";
         });
 
-        IAsyncOperationWithProgress<DeploymentResult, DeploymentProgress> deploymentOperation = default;
-        Uri packageUri = default;
-        PackageManager packageManager = new();
-
         Application.Current.Exit += (sender, e) =>
         {
             webClient.CancelAsync();
             deploymentOperation?.Cancel();
             DeleteFile(packageUri?.AbsolutePath);
-            foreach (var package in packageManager.FindPackagesForUserWithPackageTypes(string.Empty, PackageTypes.Framework))
-                packageManager.RemovePackageAsync(package.Id.FullName).GetResults();
+            foreach (var package in Store.PackageManager.FindPackagesForUserWithPackageTypes(string.Empty, PackageTypes.Framework))
+                Store.PackageManager.RemovePackageAsync(package.Id.FullName).GetResults();
         };
 
-        ContentRendered += async (sender, e) => await Task.Run(async () =>
+        ContentRendered += async (sender, e) => await Task.Run(() =>
         {
-            var store = await Store.CreateAsync();
+            Store store = new();
             var preview = args.FirstOrDefault()?.Equals("/preview", StringComparison.OrdinalIgnoreCase) ?? false;
 
-            foreach (var product in await store.GetProductsAsync("9WZDNCRD1HKW", preview ? "9P5X4QVLC2XR" : "9NBLGGH2JHXJ"))
+            foreach (var product in store.GetProducts("9WZDNCRD1HKW", preview ? "9P5X4QVLC2XR" : "9NBLGGH2JHXJ"))
             {
                 Dispatcher.Invoke(() =>
                 {
@@ -150,7 +148,7 @@ class MainWindow : Window
                     textBlock1.Text = $"Updating {product.Title}...";
                     textBlock2.Text = null;
                 });
-                var identities = await store.SyncUpdatesAsync(product);
+                var identities = store.SyncUpdates(product);
 
                 if (identities.Count != 0) Dispatcher.Invoke(() => progressBar.IsIndeterminate = false);
                 for (int i = 0; i < identities.Count; i++)
@@ -164,10 +162,10 @@ class MainWindow : Window
 
                     try
                     {
-                        await webClient.DownloadFileTaskAsync(await store.GetUrlAsync(identities[i]), (packageUri = new(Path.GetTempFileName())).AbsolutePath);
-                        deploymentOperation = packageManager.AddPackageAsync(packageUri, null, DeploymentOptions.ForceApplicationShutdown);
+                        webClient.DownloadFileTaskAsync(store.GetUrl(identities[i]), (packageUri = new(Path.GetTempFileName())).AbsolutePath).Wait();
+                        deploymentOperation = Store.PackageManager.AddPackageAsync(packageUri, null, DeploymentOptions.ForceApplicationShutdown);
                         deploymentOperation.Progress += (sender, e) => Dispatcher.Invoke(() => progressBar.Value = e.percentage);
-                        await deploymentOperation;
+                        deploymentOperation.AsTask().Wait();
                     }
                     finally { DeleteFile(packageUri.AbsolutePath); }
                 }
