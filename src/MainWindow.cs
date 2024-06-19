@@ -46,7 +46,7 @@ class MainWindow : Window
 
         UseLayoutRounding = true;
         Icon = global::Resources.Icon;
-        Title = preview ? "Bedrock Updater Preview":"Bedrock Updater" ;
+        Title = preview ? "Bedrock Updater Preview" : "Bedrock Updater";
         Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1E1E1E"));
         Content = new Grid { Width = 1000, Height = 600 };
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
@@ -131,7 +131,7 @@ class MainWindow : Window
         Application.Current.Exit += (sender, e) =>
         {
             webClient.CancelAsync();
-            while (webClient.IsBusy) Console.WriteLine("Waiting...");
+            while (webClient.IsBusy) ;
             deploymentOperation?.Cancel();
             DeleteFile(packageUri?.AbsolutePath);
             foreach (var package in Store.PackageManager.FindPackagesForUserWithPackageTypes(string.Empty, PackageTypes.Framework))
