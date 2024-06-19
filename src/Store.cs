@@ -56,6 +56,8 @@ class Store
 
     internal Store() { syncUpdates = Resources.SyncUpdates.Replace("{1}", Post(Resources.GetCookie).GetElementsByTagName("EncryptedData")[0].InnerText); }
 
+    ~Store() { webClient.Dispose(); }
+
     internal IEnumerable<IProduct> GetProducts(params string[] productIds)
     {
         List<IProduct> products = [];

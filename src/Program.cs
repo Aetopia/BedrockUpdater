@@ -1,8 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Windows;
 using System;
-using System.Threading.Tasks;
-using System.Linq;
 
 static class Program
 {

@@ -135,7 +135,7 @@ class MainWindow : Window
                 Store.PackageManager.RemovePackageAsync(package.Id.FullName).GetResults();
         };
 
-        ContentRendered += async (sender, e) => await Task.Run(() =>
+        ContentRendered += (sender, e) => Task.Run(() =>
         {
             Store store = new();
             var preview = args.FirstOrDefault()?.Equals("/preview", StringComparison.OrdinalIgnoreCase) ?? false;

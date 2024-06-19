@@ -7,15 +7,15 @@ static class Resources
 {
     static readonly Assembly assembly = Assembly.GetExecutingAssembly();
 
-    internal static string GetCookie => ToString("GetCookie.xml");
+    internal static readonly string GetCookie = ToString("GetCookie.xml");
 
-    internal static string GetExtendedUpdateInfo2 => ToString("GetExtendedUpdateInfo2.xml");
+    internal static readonly string GetExtendedUpdateInfo2 = ToString("GetExtendedUpdateInfo2.xml");
 
-    internal static string SyncUpdates => ToString("SyncUpdates.xml");
+    internal static readonly string SyncUpdates = ToString("SyncUpdates.xml");
 
-    internal static string Minecraft => ToString("Minecraft.svg");
+    internal static readonly string Minecraft = ToString("Minecraft.svg");
 
-    internal static ImageSource Icon => ToImageSource(".ico");
+    internal static readonly ImageSource Icon = ToImageSource(".ico");
 
     static ImageSource ToImageSource(string name)
     {
