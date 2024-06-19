@@ -58,7 +58,7 @@ class MainWindow : Window
             Child = new System.Windows.Forms.WebBrowser
             {
                 ScrollBarsEnabled = false,
-                DocumentText = $@"<head><meta http-equiv=""X-UA-Compatible"" content=""IE=9""/></head><body style=""background-color: #1E1E1E""><div style=""width: 100%; height: 100%; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%)"">{(global::Resources.Minecraft)}</div></body>"
+                DocumentText = $@"<head><meta http-equiv=""X-UA-Compatible"" content=""IE=9""/></head><body style=""background-color:#1E1E1E""><div style=""width:100%;height:100%;position:absolute;left:50%;top:50%;transform:translate(-50%, -50%)"">{(global::Resources.Minecraft)}</div></body>"
             },
             IsEnabled = false
         };
