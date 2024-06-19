@@ -34,7 +34,8 @@ class MainWindow : Window
 
     internal MainWindow(IEnumerable<string> args)
     {
-        Application.Current.Dispatcher.UnhandledException += (sender, e) =>
+        var preview = args.FirstOrDefault()?.Equals("/preview", StringComparison.OrdinalIgnoreCase) ?? false;
+        Application.Current.DispatcherUnhandledException += (sender, e) =>
         {
             e.Handled = true;
             var exception = e.Exception;
@@ -45,7 +46,7 @@ class MainWindow : Window
 
         UseLayoutRounding = true;
         Icon = global::Resources.Icon;
-        Title = "Bedrock Updater";
+        Title = preview ? "Bedrock Updater Preview":"Bedrock Updater" ;
         Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1E1E1E"));
         Content = new Grid { Width = 1000, Height = 600 };
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
@@ -109,9 +110,7 @@ class MainWindow : Window
         grid.Children.Add(textBlock2);
 
         string value = default;
-        Uri packageUri = default;
         using WebClient webClient = new();
-        IAsyncOperationWithProgress<DeploymentResult, DeploymentProgress> deploymentOperation = default;
 
         webClient.DownloadProgressChanged += (sender, e) => Dispatcher.Invoke(() =>
         {
@@ -126,20 +125,22 @@ class MainWindow : Window
             textBlock1.Text = "Installing...";
         });
 
+        Uri packageUri = default;
+        IAsyncOperationWithProgress<DeploymentResult, DeploymentProgress> deploymentOperation = default;
+
         Application.Current.Exit += (sender, e) =>
         {
             webClient.CancelAsync();
+            while (webClient.IsBusy) Console.WriteLine("Waiting...");
             deploymentOperation?.Cancel();
             DeleteFile(packageUri?.AbsolutePath);
             foreach (var package in Store.PackageManager.FindPackagesForUserWithPackageTypes(string.Empty, PackageTypes.Framework))
-                Store.PackageManager.RemovePackageAsync(package.Id.FullName).GetResults();
+                _ = Store.PackageManager.RemovePackageAsync(package.Id.FullName);
         };
 
-        ContentRendered += (sender, e) => Task.Run(() =>
+        ContentRendered += async (sender, e) => await Task.Run(() =>
         {
             Store store = new();
-            var preview = args.FirstOrDefault()?.Equals("/preview", StringComparison.OrdinalIgnoreCase) ?? false;
-
             foreach (var product in store.GetProducts("9WZDNCRD1HKW", preview ? "9P5X4QVLC2XR" : "9NBLGGH2JHXJ"))
             {
                 Dispatcher.Invoke(() =>
@@ -164,7 +165,7 @@ class MainWindow : Window
                     {
                         webClient.DownloadFileTaskAsync(store.GetUrl(identities[i]), (packageUri = new(Path.GetTempFileName())).AbsolutePath).Wait();
                         deploymentOperation = Store.PackageManager.AddPackageAsync(packageUri, null, DeploymentOptions.ForceApplicationShutdown);
-                        deploymentOperation.Progress += (sender, e) => Dispatcher.Invoke(() => progressBar.Value = e.percentage);
+                        deploymentOperation.Progress += (sender, e) => Dispatcher.Invoke(() => textBlock1.Text = $"Installing {progressBar.Value = e.percentage}%");
                         deploymentOperation.AsTask().Wait();
                     }
                     finally { DeleteFile(packageUri.AbsolutePath); }
