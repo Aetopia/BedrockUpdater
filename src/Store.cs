@@ -146,8 +146,8 @@ class Store
                 identities.Add(new UpdateIdentity(xmlElement.GetElementsByTagName("UpdateIdentity")[0].Attributes["UpdateID"].InnerText, update.MainPackage));
             else if (update.MainPackage) return new([]);
         }
-        identities.Sort((a, b) => ((UpdateIdentity)a).MainPackage ? 1 : -1);
-
+        
+        identities.Sort((x, y) => ((UpdateIdentity)x).MainPackage ? 1 : -1);
         return identities.AsReadOnly();
     }
 
