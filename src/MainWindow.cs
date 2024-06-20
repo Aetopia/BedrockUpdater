@@ -109,64 +109,61 @@ class MainWindow : Window
         Grid.SetRow(textBlock2, 0);
         grid.Children.Add(textBlock2);
 
+        using WebClient client = new();
         string value = default;
-        using WebClient webClient = new();
 
-        webClient.DownloadProgressChanged += (sender, e) => Dispatcher.Invoke(() =>
+        client.DownloadProgressChanged += (sender, e) =>
         {
-            textBlock1.Text = $"Downloading {Format(e.BytesReceived)} / {value ??= Format(e.TotalBytesToReceive)}";
-            progressBar.Value = e.ProgressPercentage;
-        });
+            if (progressBar.Value != e.ProgressPercentage)
+            {
+                textBlock1.Text = $"Downloading {Format(e.BytesReceived)} / {value ??= Format(e.TotalBytesToReceive)}";
+                progressBar.Value = e.ProgressPercentage;
+            }
+        };
 
-        webClient.DownloadFileCompleted += (sender, e) => Dispatcher.Invoke(() =>
+        client.DownloadFileCompleted += (sender, e) =>
         {
-            value = null;
+            value = default;
             progressBar.Value = 0;
             textBlock1.Text = "Installing...";
-        });
+        };
 
         Uri packageUri = default;
-        IAsyncOperationWithProgress<DeploymentResult, DeploymentProgress> deploymentOperation = default;
+        IAsyncOperationWithProgress<DeploymentResult, DeploymentProgress> operation = default;
 
         Application.Current.Exit += (sender, e) =>
         {
-            webClient.CancelAsync();
-            while (webClient.IsBusy) ;
-            deploymentOperation?.Cancel();
+            client.CancelAsync();
+            while (client.IsBusy) ;
+            operation?.Cancel();
             DeleteFile(packageUri?.AbsolutePath);
             foreach (var package in Store.PackageManager.FindPackagesForUserWithPackageTypes(string.Empty, PackageTypes.Framework))
                 _ = Store.PackageManager.RemovePackageAsync(package.Id.FullName);
         };
 
-        ContentRendered += async (sender, e) => await Task.Run(() =>
+        ContentRendered += async (sender, e) =>
         {
-            Store store = new();
-            foreach (var product in store.GetProducts("9WZDNCRD1HKW", preview ? "9P5X4QVLC2XR" : "9NBLGGH2JHXJ"))
+            var store = await Store.CreateAsync();
+            foreach (var product in await store.GetProductsAsync("9WZDNCRD1HKW", preview ? "9P5X4QVLC2XR" : "9NBLGGH2JHXJ"))
             {
-                Dispatcher.Invoke(() =>
-                {
-                    progressBar.IsIndeterminate = true;
-                    textBlock1.Text = $"Updating {product.Title}...";
-                    textBlock2.Text = null;
-                });
-                var identities = store.SyncUpdates(product);
+                progressBar.IsIndeterminate = true;
+                textBlock1.Text = $"Updating {product.Title}...";
+                textBlock2.Text = null;
+                var identities = await store.SyncUpdatesAsync(product);
 
-                if (identities.Count != 0) Dispatcher.Invoke(() => progressBar.IsIndeterminate = false);
+                if (identities.Count != 0) progressBar.IsIndeterminate = false;
                 for (int i = 0; i < identities.Count; i++)
                 {
-                    Dispatcher.Invoke(() =>
-                    {
-                        textBlock1.Text = "Downloading...";
-                        textBlock2.Text = $"{i + 1} of {identities.Count}";
-                        progressBar.Value = 0;
-                    });
+                    textBlock1.Text = "Downloading...";
+                    textBlock2.Text = $"{i + 1} of {identities.Count}";
+                    progressBar.Value = 0;
 
                     try
                     {
-                        webClient.DownloadFileTaskAsync(store.GetUrl(identities[i]), (packageUri = new(Path.GetTempFileName())).AbsolutePath).Wait();
-                        deploymentOperation = Store.PackageManager.AddPackageAsync(packageUri, null, DeploymentOptions.ForceApplicationShutdown);
-                        deploymentOperation.Progress += (sender, e) => Dispatcher.Invoke(() => textBlock1.Text = $"Installing {progressBar.Value = e.percentage}%");
-                        deploymentOperation.AsTask().Wait();
+                        await client.DownloadFileTaskAsync(await store.GetUrlAsync(identities[i]), (packageUri = new(Path.GetTempFileName())).AbsolutePath);
+                        operation = Store.PackageManager.AddPackageAsync(packageUri, null, DeploymentOptions.ForceApplicationShutdown);
+                        operation.Progress += (sender, e) => Dispatcher.Invoke(() => { if (progressBar.Value != e.percentage) textBlock1.Text = $"Installing {progressBar.Value = e.percentage}%"; });
+                        await operation;
                     }
                     finally { DeleteFile(packageUri.AbsolutePath); }
                 }
@@ -178,7 +175,7 @@ class MainWindow : Window
                 Arguments = preview ? "minecraft-preview://" : "minecraft://",
                 UseShellExecute = false
             }).Dispose();
-            Dispatcher.Invoke(Close);
-        });
+            Close();
+        };
     }
 }
