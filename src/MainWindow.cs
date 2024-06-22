@@ -22,8 +22,6 @@ class MainWindow : Window
 
     internal MainWindow(bool preview)
     {
-
-
         UseLayoutRounding = true;
         Icon = global::Resources.Icon;
         Title = preview ? "Bedrock Updater Preview" : "Bedrock Updater";
@@ -152,11 +150,7 @@ class MainWindow : Window
                     {
                         client.DownloadFileTaskAsync(Store.GetUrl(updates[i]), (packageUri = new(Path.GetTempFileName())).AbsolutePath).Wait();
                         operation = Store.PackageManager.AddPackageAsync(packageUri, null, DeploymentOptions.ForceApplicationShutdown);
-                        operation.Progress += (sender, e) =>
-                        {
-                            var text = $"Installing {e.percentage}%";
-                            Dispatcher.Invoke(() => { if (progressBar.Value != e.percentage) { progressBar.Value = e.percentage; textBlock1.Text = text; } });
-                        };
+                        operation.Progress += (sender, e) => Dispatcher.Invoke(() => { if (progressBar.Value != e.percentage) textBlock1.Text = $"Installing {progressBar.Value = e.percentage}%"; });
                         operation.AsTask().Wait();
                     }
                     finally { NativeMethods.DeleteFile(packageUri.AbsolutePath); }
