@@ -1,10 +1,6 @@
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Net;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -15,34 +11,18 @@ using Windows.Management.Deployment;
 
 class MainWindow : Window
 {
-    [DllImport("Kernel32", CharSet = CharSet.Auto, SetLastError = true)]
-    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    static extern bool DeleteFile(string lpFileName);
-
-    [DllImport("Shell32", CharSet = CharSet.Auto, SetLastError = true)]
-    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    static extern int ShellMessageBox(IntPtr hAppInst = default, IntPtr hWnd = default, string lpcText = default, string lpcTitle = "Bedrock Updater", int fuStyle = 0x00000010);
-
-    static readonly IEnumerable<string> Units = ["B", "KB", "MB", "GB"];
+    enum Units { B, KB, MB, GB }
 
     static string Format(float bytes)
     {
         int index = 0;
-        while (bytes >= 1024) { bytes /= 1024; ++index; }
-        return string.Format($"{bytes:0.00} {Units.ElementAt(index)}");
+        while (bytes >= 1024f) { bytes /= 1024f; ++index; }
+        return string.Format($"{bytes:0.00} {(Units)index}");
     }
 
-    internal MainWindow(IEnumerable<string> args)
+    internal MainWindow(bool preview)
     {
-        var preview = args.FirstOrDefault()?.Equals("/preview", StringComparison.OrdinalIgnoreCase) ?? false;
-        Application.Current.DispatcherUnhandledException += (sender, e) =>
-        {
-            e.Handled = true;
-            var exception = e.Exception;
-            while (exception.InnerException != null) exception = exception.InnerException;
-            ShellMessageBox(lpcText: exception.Message);
-            Close();
-        };
+
 
         UseLayoutRounding = true;
         Icon = global::Resources.Icon;
@@ -52,6 +32,7 @@ class MainWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         ResizeMode = ResizeMode.NoResize;
         SizeToContent = SizeToContent.WidthAndHeight;
+        Closed += (sender, e) => Environment.Exit(0);
 
         WindowsFormsHost host = new()
         {
@@ -114,68 +95,76 @@ class MainWindow : Window
 
         client.DownloadProgressChanged += (sender, e) =>
         {
-            if (progressBar.Value != e.ProgressPercentage)
+            var text = $"Downloading {Format(e.BytesReceived)} / {value ??= Format(e.TotalBytesToReceive)}";
+            Dispatcher.Invoke(() =>
             {
-                textBlock1.Text = $"Downloading {Format(e.BytesReceived)} / {value ??= Format(e.TotalBytesToReceive)}";
-                progressBar.Value = e.ProgressPercentage;
-            }
+                textBlock1.Text = text;
+                if (progressBar.Value != e.ProgressPercentage) progressBar.Value = e.ProgressPercentage;
+            });
         };
 
         client.DownloadFileCompleted += (sender, e) =>
         {
             value = default;
-            progressBar.Value = 0;
-            textBlock1.Text = "Installing...";
+            Dispatcher.Invoke(() =>
+            {
+                progressBar.Value = 0;
+                textBlock1.Text = "Installing...";
+            });
         };
 
         Uri packageUri = default;
         IAsyncOperationWithProgress<DeploymentResult, DeploymentProgress> operation = default;
 
-        Application.Current.Exit += (sender, e) =>
+        AppDomain.CurrentDomain.ProcessExit += (sender, e) =>
         {
             client.CancelAsync();
             while (client.IsBusy) ;
             operation?.Cancel();
-            DeleteFile(packageUri?.AbsolutePath);
+            NativeMethods.DeleteFile(packageUri?.AbsolutePath);
             foreach (var package in Store.PackageManager.FindPackagesForUserWithPackageTypes(string.Empty, PackageTypes.Framework))
                 _ = Store.PackageManager.RemovePackageAsync(package.Id.FullName);
         };
 
-        ContentRendered += async (sender, e) =>
+        ContentRendered += async (sender, e) => await Task.Run(() =>
         {
-            var store = await Store.CreateAsync();
-            foreach (var product in await store.GetProductsAsync("9WZDNCRD1HKW", preview ? "9P5X4QVLC2XR" : "9NBLGGH2JHXJ"))
+            foreach (var product in Store.GetProducts("9WZDNCRD1HKW", preview ? "9P5X4QVLC2XR" : "9NBLGGH2JHXJ"))
             {
-                progressBar.IsIndeterminate = true;
-                textBlock1.Text = $"Updating {product.Title}...";
-                textBlock2.Text = null;
-                var identities = await store.SyncUpdatesAsync(product);
-
-                if (identities.Count != 0) progressBar.IsIndeterminate = false;
-                for (int i = 0; i < identities.Count; i++)
+                Dispatcher.Invoke(() =>
                 {
-                    textBlock1.Text = "Downloading...";
-                    textBlock2.Text = $"{i + 1} of {identities.Count}";
-                    progressBar.Value = 0;
+                    progressBar.IsIndeterminate = true;
+                    textBlock1.Text = $"Updating {product.Title}...";
+                    textBlock2.Text = default;
+                });
+                var updates = Store.GetUpdates(product);
+
+                if (updates.Count != 0) Dispatcher.Invoke(() => progressBar.IsIndeterminate = false);
+                for (int i = 0; i < updates.Count; i++)
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        textBlock1.Text = "Downloading...";
+                        textBlock2.Text = $"{i + 1} of {updates.Count}";
+                        progressBar.Value = 0;
+                    });
 
                     try
                     {
-                        await client.DownloadFileTaskAsync(await store.GetUrlAsync(identities[i]), (packageUri = new(Path.GetTempFileName())).AbsolutePath);
+                        client.DownloadFileTaskAsync(Store.GetUrl(updates[i]), (packageUri = new(Path.GetTempFileName())).AbsolutePath).Wait();
                         operation = Store.PackageManager.AddPackageAsync(packageUri, null, DeploymentOptions.ForceApplicationShutdown);
-                        operation.Progress += (sender, e) => Dispatcher.Invoke(() => { if (progressBar.Value != e.percentage) textBlock1.Text = $"Installing {progressBar.Value = e.percentage}%"; });
-                        await operation;
+                        operation.Progress += (sender, e) =>
+                        {
+                            var text = $"Installing {e.percentage}%";
+                            Dispatcher.Invoke(() => { if (progressBar.Value != e.percentage) { progressBar.Value = e.percentage; textBlock1.Text = text; } });
+                        };
+                        operation.AsTask().Wait();
                     }
-                    finally { DeleteFile(packageUri.AbsolutePath); }
+                    finally { NativeMethods.DeleteFile(packageUri.AbsolutePath); }
                 }
             }
 
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"),
-                Arguments = preview ? "minecraft-preview://" : "minecraft://",
-                UseShellExecute = false
-            }).Dispose();
-            Close();
-        };
+            NativeMethods.ShellExecute(lpFile: preview ? "minecraft-preview://" : "minecraft://");
+            Dispatcher.Invoke(Close);
+        });
     }
 }
