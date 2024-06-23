@@ -6,19 +6,11 @@ using Windows.Foundation;
 using System.Windows.Media;
 using System.Threading.Tasks;
 using System.Windows.Controls;
-using System.Runtime.InteropServices;
-using System.Windows.Forms.Integration;
 using Windows.Management.Deployment;
+using System.Windows.Forms.Integration;
 
 class MainWindow : Window
 {
-    [DllImport("Kernel32", CharSet = CharSet.Auto, SetLastError = true)]
-    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    internal static extern bool DeleteFile(string lpFileName);
-
-    [DllImport("Shell32", CharSet = CharSet.Auto, SetLastError = true)]
-    internal static extern IntPtr ShellExecute(IntPtr hwnd = default, string lpOperation = null, string lpFile = null, string lpParameters = null, string lpDirectory = null, int nShowCmd = 0);
-
     enum Units { B, KB, MB, GB }
 
     static string Format(float bytes)
@@ -127,7 +119,7 @@ class MainWindow : Window
             client.CancelAsync();
             while (client.IsBusy) ;
             operation?.Cancel();
-            DeleteFile(packageUri?.AbsolutePath);
+            NativeMethods.DeleteFile(packageUri?.AbsolutePath);
             foreach (var package in Store.PackageManager.FindPackagesForUserWithPackageTypes(string.Empty, PackageTypes.Framework))
                 _ = Store.PackageManager.RemovePackageAsync(package.Id.FullName);
         };
@@ -161,11 +153,11 @@ class MainWindow : Window
                         operation.Progress += (sender, e) => Dispatcher.Invoke(() => { if (progressBar.Value != e.percentage) textBlock1.Text = $"Installing {progressBar.Value = e.percentage}%"; });
                         operation.AsTask().Wait();
                     }
-                    finally { DeleteFile(packageUri.AbsolutePath); }
+                    finally { NativeMethods.DeleteFile(packageUri.AbsolutePath); }
                 }
             }
 
-            ShellExecute(lpFile: @$"shell:AppsFolder\Microsoft.Minecraft{(preview ? "WindowsBeta" : "UWP")}_8wekyb3d8bbwe!App");
+            NativeMethods.ShellExecute(lpFile: @$"shell:AppsFolder\Microsoft.Minecraft{(preview ? "WindowsBeta" : "UWP")}_8wekyb3d8bbwe!App");
             Dispatcher.Invoke(Close);
         });
     }
