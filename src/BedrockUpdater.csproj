@@ -34,8 +34,8 @@
       <LogicalName>SyncUpdates.xml</LogicalName>
     </EmbeddedResource>
 
-    <EmbeddedResource Include="Resources/Minecraft.svg">
-      <LogicalName>Minecraft.svg</LogicalName>
+    <EmbeddedResource Include="Resources/Logo.svg">
+      <LogicalName>Logo.svg</LogicalName>
     </EmbeddedResource>
 
     <EmbeddedResource Include="Resources/.ico">

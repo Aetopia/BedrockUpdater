@@ -13,7 +13,7 @@ static class Resources
 
     internal static readonly string SyncUpdates = ToString("SyncUpdates.xml");
 
-    internal static readonly string Minecraft = ToString("Minecraft.svg");
+    internal static readonly string Logo = ToString("Logo.svg");
 
     internal static readonly ImageSource Icon = ToImageSource(".ico");
 

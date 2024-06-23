@@ -15,9 +15,9 @@ class MainWindow : Window
 
     static string Format(float bytes)
     {
-        int index = 0;
-        while (bytes >= 1024f) { bytes /= 1024f; index++; }
-        return string.Format($"{bytes:0.00} {(Units)index}");
+        int value = 0;
+        while (bytes >= 1024f) { bytes /= 1024f; value++; }
+        return string.Format($"{bytes:0.00} {(Units)value}");
     }
 
     internal MainWindow(bool preview)
@@ -25,7 +25,7 @@ class MainWindow : Window
         UseLayoutRounding = true;
         Icon = global::Resources.Icon;
         Title = preview ? "Bedrock Updater Preview" : "Bedrock Updater";
-        Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1E1E1E"));
+        Background = new SolidColorBrush(Color.FromRgb(30, 30, 30));
         Content = new Grid { Width = 1000, Height = 600 };
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         ResizeMode = ResizeMode.NoResize;
@@ -37,7 +37,7 @@ class MainWindow : Window
             Child = new System.Windows.Forms.WebBrowser
             {
                 ScrollBarsEnabled = false,
-                DocumentText = $@"<head><meta http-equiv=""X-UA-Compatible"" content=""IE=9""/></head><body style=""background-color:#1E1E1E""><div style=""width:100%;height:100%;position:absolute;left:50%;top:50%;transform:translate(-50%, -50%)"">{(global::Resources.Minecraft)}</div></body>"
+                DocumentText = $@"<head><meta http-equiv=""X-UA-Compatible"" content=""IE=9""/></head><body style=""background-color:#1E1E1E""><div style=""width:100%;height:100%;position:absolute;left:50%;top:50%;transform:translate(-50%, -50%)"">{(global::Resources.Logo)}</div></body>"
             },
             IsEnabled = false
         };
@@ -58,8 +58,8 @@ class MainWindow : Window
             Height = 32,
             BorderThickness = default,
             IsIndeterminate = true,
-            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#008542")),
-            Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0E0E0E"))
+            Foreground = new SolidColorBrush(Color.FromRgb(0, 133,66)),
+            Background = new SolidColorBrush(Color.FromRgb(14, 14, 14))
         };
 
         Grid.SetRow(progressBar, 0);
