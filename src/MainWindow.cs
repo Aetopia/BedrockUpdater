@@ -16,7 +16,7 @@ class MainWindow : Window
     static string Format(float bytes)
     {
         int index = 0;
-        while (bytes >= 1024f) { bytes /= 1024f; ++index; }
+        while (bytes >= 1024f) { bytes /= 1024f; index++; }
         return string.Format($"{bytes:0.00} {(Units)index}");
     }
 
