@@ -30,7 +30,6 @@ class MainWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         ResizeMode = ResizeMode.NoResize;
         SizeToContent = SizeToContent.WidthAndHeight;
-        Closed += (sender, e) => Environment.Exit(0);
 
         WindowsFormsHost host = new()
         {
