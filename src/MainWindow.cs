@@ -37,7 +37,7 @@ class MainWindow : Window
             Child = new System.Windows.Forms.WebBrowser
             {
                 ScrollBarsEnabled = false,
-                DocumentText = $@"<head><meta http-equiv=""X-UA-Compatible"" content=""IE=9""/></head><body style=""background-color:#1E1E1E""><div style=""width:100%;height:100%;position:absolute;left:50%;top:50%;transform:translate(-50%, -50%)"">{(global::Resources.Logo)}</div></body>"
+                DocumentText = $@"<head><meta http-equiv=""X-UA-Compatible"" content=""IE=Edge""/></head><body style=""background-color:#1E1E1E""><div style=""width:100%;height:100%;position:absolute;left:50%;top:50%;transform:translate(-50%, -50%)"">{(global::Resources.Logo)}</div></body>"
             },
             IsEnabled = false
         };
@@ -58,7 +58,7 @@ class MainWindow : Window
             Height = 32,
             BorderThickness = default,
             IsIndeterminate = true,
-            Foreground = new SolidColorBrush(Color.FromRgb(0, 133,66)),
+            Foreground = new SolidColorBrush(Color.FromRgb(0, 133, 66)),
             Background = new SolidColorBrush(Color.FromRgb(14, 14, 14))
         };
 
