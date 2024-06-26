@@ -38,7 +38,7 @@ static class Store
 {
     internal static readonly PackageManager PackageManager = new();
 
-    static readonly string architecture = RuntimeInformation.OSArchitecture.ToString().ToLower();
+    static readonly string architecture = RuntimeInformation.OSArchitecture.ToString();
 
     static readonly string address = $"https://storeedgefd.dsx.mp.microsoft.com/v9.0/products/{{0}}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop";
 
@@ -84,7 +84,7 @@ static class Store
             var file = xmlElement.GetElementsByTagName("File")[0];
 
             var packageIdentity = file.Attributes["InstallerSpecificIdentifier"].InnerText.Split('_');
-            if (!packageIdentity[2].Equals(architecture) && !packageIdentity[2].Equals("neutral")) continue;
+            if (!packageIdentity[2].Equals(architecture, StringComparison.OrdinalIgnoreCase) && !packageIdentity[2].Equals("neutral")) continue;
             if (!updates.ContainsKey(packageIdentity[0])) updates.Add(packageIdentity[0], new());
 
             var modified = Convert.ToDateTime(file.Attributes["Modified"].InnerText);
