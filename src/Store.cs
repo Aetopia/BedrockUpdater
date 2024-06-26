@@ -67,7 +67,7 @@ static class Store
         return UploadString(Resources.GetExtendedUpdateInfo2.Replace("{1}", update.UpdateId), true)
         .GetElementsByTagName("Url")
         .Cast<XmlNode>()
-        .First(xmlNode => xmlNode.InnerText.StartsWith("http://tlu.dl.delivery.mp.microsoft.com")).InnerText;
+        .First(xmlNode => xmlNode.InnerText.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).InnerText;
     }
 
     internal static ReadOnlyCollection<IUpdate> GetUpdates(IProduct product)
