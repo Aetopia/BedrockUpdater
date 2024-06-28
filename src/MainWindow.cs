@@ -37,7 +37,7 @@ class MainWindow : Window
             Child = new System.Windows.Forms.WebBrowser
             {
                 ScrollBarsEnabled = false,
-                DocumentText = $@"<!DOCTYPE html><html><head><meta http-equiv=""X-UA-Compatible"" content=""IE=edge""></head><body style=""background-color:#1E1E1E""><div style=""width:100%;height:100%;position:absolute;left:50%;top:50%;transform:translate(-50%, -50%)"">{(global::Resources.Logo)}</div></body></html>"
+                DocumentText = $@"<!DOCTYPE html><html><head><meta http-equiv=""X-UA-Compatible"" content=""IE=edge""></head><body style=""background-color:#1E1E1E""><div style=""width:100%;height:100%;position:absolute;left:50%;top:50%;transform:translate(-50%, -50%)"">{(global::Resources.ToString("Logo.svg"))}</div></body></html>"
             },
             IsEnabled = false
         };
@@ -88,7 +88,7 @@ class MainWindow : Window
         Grid.SetRow(textBlock2, 0);
         grid.Children.Add(textBlock2);
 
-        using WebClient client = new() ;
+        using WebClient client = new();
         string value = default;
 
         client.DownloadProgressChanged += (sender, e) =>

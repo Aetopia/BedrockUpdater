@@ -73,7 +73,7 @@ static class Store
     internal static ReadOnlyCollection<IUpdate> GetUpdates(IProduct product)
     {
         var result = (XmlElement)UploadString(
-            (data ??= Resources.SyncUpdates.Replace("{1}", UploadString(Resources.GetCookie).GetElementsByTagName("EncryptedData")[0].InnerText))
+            (data ??= Resources.ToString("SyncUpdates.xml").Replace("{1}", UploadString(Resources.ToString("GetCookie.xml")).GetElementsByTagName("EncryptedData")[0].InnerText))
             .Replace("{2}", product.AppCategoryId))
             .GetElementsByTagName("SyncUpdatesResult")[0];
 
