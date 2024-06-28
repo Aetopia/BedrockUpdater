@@ -42,9 +42,13 @@ static class Store
 
     static readonly string address = $"https://storeedgefd.dsx.mp.microsoft.com/v9.0/products/{{0}}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop";
 
-    static readonly WebClient client = new() { BaseAddress = "https://fe3.delivery.mp.microsoft.com/ClientWebService/client.asmx/" };
+    static readonly WebClient client = new()
+    {
+        Proxy = null,
+        BaseAddress = "https://fe3.delivery.mp.microsoft.com/ClientWebService/client.asmx/"
+    };
 
-    static string syncUpdates;
+    static string data;
 
     internal static IEnumerable<IProduct> GetProducts(params string[] productIds)
     {
@@ -67,53 +71,52 @@ static class Store
         return UploadString(Resources.GetExtendedUpdateInfo2.Replace("{1}", update.UpdateId), true)
         .GetElementsByTagName("Url")
         .Cast<XmlNode>()
-        .First(xmlNode => xmlNode.InnerText.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).InnerText;
+        .First(node => node.InnerText.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).InnerText;
     }
 
     internal static ReadOnlyCollection<IUpdate> GetUpdates(IProduct product)
     {
-        var syncUpdatesResult = (XmlElement)UploadString(
-            (syncUpdates ??= Resources.SyncUpdates.Replace("{1}", UploadString(Resources.GetCookie).GetElementsByTagName("EncryptedData")[0].InnerText))
+        var result = (XmlElement)UploadString(
+            (data ??= Resources.SyncUpdates.Replace("{1}", UploadString(Resources.GetCookie).GetElementsByTagName("EncryptedData")[0].InnerText))
             .Replace("{2}", product.AppCategoryId))
             .GetElementsByTagName("SyncUpdatesResult")[0];
 
         Dictionary<string, Update> updates = [];
-        foreach (XmlNode xmlNode in syncUpdatesResult.GetElementsByTagName("AppxPackageInstallData"))
+        foreach (XmlNode node in result.GetElementsByTagName("AppxPackageInstallData"))
         {
-            var xmlElement = (XmlElement)xmlNode.ParentNode.ParentNode.ParentNode;
-            var file = xmlElement.GetElementsByTagName("File")[0];
+            var element = (XmlElement)node.ParentNode.ParentNode.ParentNode;
+            var file = element.GetElementsByTagName("File")[0];
 
-            var packageIdentity = file.Attributes["InstallerSpecificIdentifier"].InnerText.Split('_');
-            if (!packageIdentity[2].Equals(architecture, StringComparison.OrdinalIgnoreCase) && !packageIdentity[2].Equals("neutral")) continue;
-            if (!updates.ContainsKey(packageIdentity[0])) updates.Add(packageIdentity[0], new());
+            var identity = file.Attributes["InstallerSpecificIdentifier"].InnerText.Split('_');
+            if (!identity[2].Equals(architecture, StringComparison.OrdinalIgnoreCase) && !identity[2].Equals("neutral")) continue;
+            if (!updates.ContainsKey(identity[0])) updates.Add(identity[0], new());
 
             var modified = Convert.ToDateTime(file.Attributes["Modified"].InnerText);
-            if (updates[packageIdentity[0]].Modified < modified)
+            if (updates[identity[0]].Modified < modified)
             {
-                updates[packageIdentity[0]].Id = xmlElement["ID"].InnerText;
-                updates[packageIdentity[0]].Modified = modified;
-                updates[packageIdentity[0]].MainPackage = xmlNode.Attributes["MainPackage"].InnerText == "true";
+                updates[identity[0]].Id = element["ID"].InnerText;
+                updates[identity[0]].Modified = modified;
+                updates[identity[0]].MainPackage = node.Attributes["MainPackage"].InnerText.Equals("true");
             }
         }
 
-        foreach (XmlNode xmlNode in syncUpdatesResult.GetElementsByTagName("SecuredFragment"))
+        foreach (XmlNode node in result.GetElementsByTagName("SecuredFragment"))
         {
-            var xmlElement = (XmlElement)xmlNode.ParentNode.ParentNode.ParentNode;
-            var update = updates.FirstOrDefault(update => update.Value.Id.Equals(xmlElement["ID"].InnerText));
+            var element = (XmlElement)node.ParentNode.ParentNode.ParentNode;
+            var update = updates.FirstOrDefault(update => update.Value.Id.Equals(element["ID"].InnerText));
             if (update.Value == null) continue;
 
-            var packageIdentity = xmlElement.GetElementsByTagName("AppxMetadata")[0].Attributes["PackageMoniker"].InnerText.Split('_');
-            var package = PackageManager.FindPackagesForUser(string.Empty, $"{packageIdentity.First()}_{packageIdentity.Last()}").FirstOrDefault();
+            var identity = element.GetElementsByTagName("AppxMetadata")[0].Attributes["PackageMoniker"].InnerText.Split('_');
+            var package = PackageManager.FindPackagesForUser(string.Empty, $"{identity[0]}_{identity[4]}").FirstOrDefault();
 
-            if (package == null || (!package.IsDevelopmentMode && new Version(packageIdentity[1]) >
-                new Version(package.Id.Version.Major, package.Id.Version.Minor, package.Id.Version.Build, package.Id.Version.Revision)))
-                updates[update.Key].UpdateId = xmlElement.GetElementsByTagName("UpdateIdentity")[0].Attributes["UpdateID"].InnerText;
+            if (package == null || (!package.IsDevelopmentMode && new Version(identity[1]) > new Version(package.Id.Version.Major, package.Id.Version.Minor, package.Id.Version.Build, package.Id.Version.Revision)))
+                updates[update.Key].UpdateId = element.GetElementsByTagName("UpdateIdentity")[0].Attributes["UpdateID"].InnerText;
             else if (update.Value.MainPackage) return new([]);
-            else updates.Remove(update.Key);
         }
 
         return updates
         .Select(update => update.Value)
+        .Where(update => update.UpdateId != null)
         .OrderBy(update => update.MainPackage)
         .Cast<IUpdate>()
         .ToList()
@@ -123,16 +126,16 @@ static class Store
     static XmlElement Deserialize(string input)
     {
         using var reader = JsonReaderWriterFactory.CreateJsonReader(Encoding.UTF8.GetBytes(input), XmlDictionaryReaderQuotas.Max);
-        XmlDocument xml = new();
-        xml.Load(reader);
-        return xml["root"];
+        XmlDocument document = new();
+        document.Load(reader);
+        return document["root"];
     }
 
     static XmlDocument UploadString(string data, bool secured = false)
     {
         client.Headers["Content-Type"] = "application/soap+xml";
-        XmlDocument xmlDocument = new();
-        xmlDocument.LoadXml(client.UploadString(secured ? "secured" : string.Empty, data).Replace("&lt;", "<").Replace("&gt;", ">"));
-        return xmlDocument;
+        XmlDocument document = new();
+        document.LoadXml(client.UploadString(secured ? "secured" : string.Empty, data).Replace("&lt;", "<").Replace("&gt;", ">"));
+        return document;
     }
 }
