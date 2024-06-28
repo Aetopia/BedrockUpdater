@@ -42,11 +42,7 @@ static class Store
 
     static readonly string address = $"https://storeedgefd.dsx.mp.microsoft.com/v9.0/products/{{0}}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop";
 
-    static readonly WebClient client = new()
-    {
-        Proxy = null,
-        BaseAddress = "https://fe3.delivery.mp.microsoft.com/ClientWebService/client.asmx/"
-    };
+    static readonly WebClient client = new() { BaseAddress = "https://fe3.delivery.mp.microsoft.com/ClientWebService/client.asmx/" };
 
     static string data;
 

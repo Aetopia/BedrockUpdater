@@ -88,7 +88,7 @@ class MainWindow : Window
         Grid.SetRow(textBlock2, 0);
         grid.Children.Add(textBlock2);
 
-        using WebClient client = new() { Proxy = null };
+        using WebClient client = new() ;
         string value = default;
 
         client.DownloadProgressChanged += (sender, e) =>
