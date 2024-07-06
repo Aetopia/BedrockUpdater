@@ -26,32 +26,27 @@ class MainWindow : Window
         Icon = global::Resources.Icon;
         Title = preview ? "Bedrock Updater Preview" : "Bedrock Updater";
         Background = new SolidColorBrush(Color.FromRgb(30, 30, 30));
-        Content = new Grid { Width = 1000, Height = 600 };
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         ResizeMode = ResizeMode.NoResize;
         SizeToContent = SizeToContent.WidthAndHeight;
         Closed += (sender, e) => Environment.Exit(0);
 
+        Grid grid1 = new() { Width = 1000, Height = 600 };
+        Content = grid1;
+
         WindowsFormsHost host = new()
         {
-            Child = new System.Windows.Forms.WebBrowser
-            {
-                ScrollBarsEnabled = false,
-                DocumentText = $@"<!DOCTYPE html><html><head><meta http-equiv=""X-UA-Compatible"" content=""IE=edge""></head><body style=""background-color:#1E1E1E""><div style=""width:100%;height:100%;position:absolute;left:50%;top:50%;transform:translate(-50%, -50%)"">{(global::Resources.ToString("Logo.svg"))}</div></body></html>"
-            },
+            Child = new System.Windows.Forms.WebBrowser { ScrollBarsEnabled = false, DocumentText = global::Resources.LoadString("Document.html") },
             IsEnabled = false
         };
-
         Grid.SetRow(host, 0);
-        ((Grid)Content).RowDefinitions.Add(new());
-        ((Grid)Content).Children.Add(host);
+        grid1.RowDefinitions.Add(new());
+        grid1.Children.Add(host);
 
-        Grid grid = new() { Margin = new(10, 0, 10, 10) };
-        grid.RowDefinitions.Add(new());
-
-        Grid.SetRow(grid, 1);
-        ((Grid)Content).RowDefinitions.Add(new() { Height = GridLength.Auto });
-        ((Grid)Content).Children.Add(grid);
+        Grid grid2 = new() { Margin = new(10, 0, 10, 10) };
+        Grid.SetRow(grid2, 1);
+        grid1.RowDefinitions.Add(new() { Height = GridLength.Auto });
+        grid1.Children.Add(grid2);
 
         ProgressBar progressBar = new()
         {
@@ -61,9 +56,7 @@ class MainWindow : Window
             Foreground = new SolidColorBrush(Color.FromRgb(0, 133, 66)),
             Background = new SolidColorBrush(Color.FromRgb(14, 14, 14))
         };
-
-        Grid.SetRow(progressBar, 0);
-        grid.Children.Add(progressBar);
+        grid2.Children.Add(progressBar);
 
         TextBlock textBlock1 = new()
         {
@@ -73,9 +66,7 @@ class MainWindow : Window
             Margin = new(16, 0, 0, 1),
             Foreground = Brushes.White
         };
-
-        Grid.SetRow(textBlock1, 0);
-        grid.Children.Add(textBlock1);
+        grid2.Children.Add(textBlock1);
 
         TextBlock textBlock2 = new()
         {
@@ -84,9 +75,7 @@ class MainWindow : Window
             Margin = new(0, 0, 16, 1),
             Foreground = Brushes.White
         };
-
-        Grid.SetRow(textBlock2, 0);
-        grid.Children.Add(textBlock2);
+        grid2.Children.Add(textBlock2);
 
         using WebClient client = new();
         string value = default;

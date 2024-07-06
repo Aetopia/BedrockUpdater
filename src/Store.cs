@@ -56,7 +56,8 @@ static class Store
 
             products.Add(new Product(
                 string.IsNullOrEmpty(title) ? payload["Title"].InnerText : title,
-                Deserialize(payload.GetElementsByTagName("FulfillmentData")[0].InnerText)["WuCategoryId"].InnerText));
+                Deserialize(payload.GetElementsByTagName("FulfillmentData")[0].InnerText)["WuCategoryId"].InnerText)
+            );
         }
 
         return products;
@@ -73,7 +74,7 @@ static class Store
     internal static ReadOnlyCollection<IUpdate> GetUpdates(IProduct product)
     {
         var result = (XmlElement)UploadString(
-            (data ??= Resources.ToString("SyncUpdates.xml").Replace("{1}", UploadString(Resources.ToString("GetCookie.xml")).GetElementsByTagName("EncryptedData")[0].InnerText))
+            (data ??= Resources.LoadString("SyncUpdates.xml").Replace("{1}", UploadString(Resources.LoadString("GetCookie.xml")).GetElementsByTagName("EncryptedData")[0].InnerText))
             .Replace("{2}", product.AppCategoryId))
             .GetElementsByTagName("SyncUpdatesResult")[0];
 
@@ -114,8 +115,7 @@ static class Store
         .Select(update => update.Value)
         .Where(update => update.UpdateId != null)
         .OrderBy(update => update.MainPackage)
-        .Cast<IUpdate>()
-        .ToList()
+        .ToList<IUpdate>()
         .AsReadOnly();
     }
 

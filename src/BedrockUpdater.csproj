@@ -12,7 +12,7 @@
     <ApplicationManifest>Resources/.manifest</ApplicationManifest>
     <ApplicationIcon>Resources/.ico</ApplicationIcon>
 
-    <AssemblyVersion>1.1.5.7</AssemblyVersion>
+    <AssemblyVersion>1.1.5.8</AssemblyVersion>
     <AssemblyTitle>Bedrock Updater</AssemblyTitle>
     <Product>Bedrock Updater</Product>
     <Copyright>Copyright (C) 2024</Copyright>
@@ -34,8 +34,8 @@
       <LogicalName>SyncUpdates.xml</LogicalName>
     </EmbeddedResource>
 
-    <EmbeddedResource Include="Resources/Logo.svg">
-      <LogicalName>Logo.svg</LogicalName>
+    <EmbeddedResource Include="Resources/Document.html">
+      <LogicalName>Document.html</LogicalName>
     </EmbeddedResource>
 
     <EmbeddedResource Include="Resources/.ico">

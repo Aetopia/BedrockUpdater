@@ -16,6 +16,7 @@ static class Program
             NativeMethods.ShellMessageBox(lpcText: exception.Message);
             Environment.Exit(0);
         };
-        new MainWindow(args.FirstOrDefault()?.Equals("/preview", StringComparison.OrdinalIgnoreCase) ?? false).ShowDialog();
+    NativeMethods.ShellMessageBox(lpcText: Store.GetProducts("BALLS").Count().ToString());
+        //new MainWindow(args.FirstOrDefault()?.Equals("/preview", StringComparison.OrdinalIgnoreCase) ?? false).ShowDialog();
     }
 }
