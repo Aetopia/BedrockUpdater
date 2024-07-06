@@ -9,8 +9,6 @@ static class Resources
 
     internal static readonly string GetExtendedUpdateInfo2 = LoadString("GetExtendedUpdateInfo2.xml");
 
-    internal static readonly ImageSource Icon = LoadImageSource(".ico");
-
     internal static ImageSource LoadImageSource(string name)
     {
         using var stream = assembly.GetManifestResourceStream(name);

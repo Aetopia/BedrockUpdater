@@ -23,7 +23,7 @@ class MainWindow : Window
     internal MainWindow(bool preview)
     {
         UseLayoutRounding = true;
-        Icon = global::Resources.Icon;
+        Icon = global::Resources.LoadImageSource(".ico");
         Title = preview ? "Bedrock Updater Preview" : "Bedrock Updater";
         Background = new SolidColorBrush(Color.FromRgb(30, 30, 30));
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
