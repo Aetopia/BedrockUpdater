@@ -125,7 +125,8 @@ class MainWindow : Window
                 });
                 var updates = Store.GetUpdates(product);
 
-                if (updates.Count != 0) Dispatcher.Invoke(() => progressBar.IsIndeterminate = false);
+                if (updates is null) continue;
+                Dispatcher.Invoke(() => progressBar.IsIndeterminate = false);
                 for (int i = 0; i < updates.Count; i++)
                 {
                     Dispatcher.Invoke(() =>
