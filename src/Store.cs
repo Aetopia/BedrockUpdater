@@ -10,6 +10,7 @@ using Windows.Management.Deployment;
 using System.Collections.ObjectModel;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Json;
+using System.IO.Packaging;
 
 struct Product
 {
@@ -52,7 +53,12 @@ static class Store
 
     static readonly WebClient client = new() { BaseAddress = "https://fe3.delivery.mp.microsoft.com/ClientWebService/client.asmx/" };
 
-    static readonly (string, string) runtime = (RuntimeInformation.OSArchitecture.ToString().ToLowerInvariant(), RuntimeInformation.OSArchitecture switch { Architecture.X64 => "x86", Architecture.Arm64 => "arm", _ => null });
+    static readonly (string, string) runtime = (RuntimeInformation.OSArchitecture.ToString().ToLowerInvariant(), RuntimeInformation.OSArchitecture switch
+    {
+        Architecture.X64 => "x86",
+        Architecture.Arm64 => "arm",
+        _ => null
+    });
 
     static readonly (ProcessorArchitecture, ProcessorArchitecture) processor = (GetProcessorArchitecture(runtime.Item1), GetProcessorArchitecture(runtime.Item2));
 
@@ -90,7 +96,7 @@ static class Store
 
     internal static ReadOnlyCollection<UpdateIdentity> GetUpdates(Product product)
     {
-        if (product.Architecture is null) return null;
+        if (product.Architecture is null) return new([]);
         var result = (XmlElement)UploadString(
             string.Format(
                 data ??= string.Format(Resources.LoadString("SyncUpdates.xml"), UploadString(Resources.LoadString("GetCookie.xml")).GetElementsByTagName("EncryptedData")[0].InnerText, "{0}"),
@@ -126,8 +132,8 @@ static class Store
             }
         }
 
-        var packages = dictionary.Where(item => item.Value.MainPackage).Select(item => item.Value);
-        architecture = (packages.FirstOrDefault(item => item.Architecture == processor.Item1) ?? packages.FirstOrDefault(item => item.Architecture == processor.Item2)).Architecture;
+        var values = dictionary.Where(item => item.Value.MainPackage).Select(item => item.Value);
+        architecture = (values.FirstOrDefault(value => value.Architecture == processor.Item1) ?? values.FirstOrDefault(value => value.Architecture == processor.Item2)).Architecture;
         var items = dictionary.Select(item => item.Value).Where(item => item.Architecture == architecture);
         List<UpdateIdentity> updates = [];
 
@@ -137,13 +143,14 @@ static class Store
             var item = items.FirstOrDefault(item => item.Id == element["ID"].InnerText);
             if (item is null) continue;
 
-            var package = PackageManager.FindPackagesForUser(string.Empty, item.PackageFamilyName).FirstOrDefault(package => package.Id.Architecture == item.Architecture);
+            var packages = PackageManager.FindPackagesForUser(string.Empty, item.PackageFamilyName);
+            var package = item.MainPackage ? packages.SingleOrDefault() : packages.FirstOrDefault(package => package.Id.Architecture == item.Architecture);
             if (package is null || (!package.IsDevelopmentMode && new Version(item.Version) > new Version(package.Id.Version.Major, package.Id.Version.Minor, package.Id.Version.Build, package.Id.Version.Revision)))
             {
                 var attributes = element.GetElementsByTagName("UpdateIdentity")[0].Attributes;
                 updates.Add(new() { UpdateId = attributes["UpdateID"].InnerText, RevisionNumber = attributes["RevisionNumber"].InnerText, MainPackage = item.MainPackage });
             }
-            else if (item.MainPackage) return null;
+            else if (item.MainPackage) return new([]);
         }
 
         updates.Sort((x, y) => x.MainPackage ? 1 : -1);
