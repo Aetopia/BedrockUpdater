@@ -52,15 +52,9 @@ static class Store
 
     static readonly WebClient client = new() { BaseAddress = "https://fe3.delivery.mp.microsoft.com/ClientWebService/client.asmx/" };
 
-    static readonly (string, string) runtime = (
-        RuntimeInformation.OSArchitecture.ToString().ToLowerInvariant(),
-        RuntimeInformation.OSArchitecture switch { Architecture.X64 => "x86", Architecture.Arm64 => "arm", _ => null }
-    );
+    static readonly (string, string) runtime = (RuntimeInformation.OSArchitecture.ToString().ToLowerInvariant(), RuntimeInformation.OSArchitecture switch { Architecture.X64 => "x86", Architecture.Arm64 => "arm", _ => null });
 
-    static readonly (ProcessorArchitecture, ProcessorArchitecture) processor = (
-        GetArchitecture(runtime.Item1),
-        GetArchitecture(runtime.Item2)
-    );
+    static readonly (ProcessorArchitecture, ProcessorArchitecture) processor = (GetProcessorArchitecture(runtime.Item1), GetProcessorArchitecture(runtime.Item2));
 
     static string data;
 
@@ -113,14 +107,7 @@ static class Store
             var identity = file.Attributes["InstallerSpecificIdentifier"].InnerText.Split('_');
             var neutral = identity[2] == "neutral";
             if (!neutral && identity[2] != runtime.Item1 && identity[2] != runtime.Item2) continue;
-            if ((architecture = (neutral ? product.Architecture : identity[2]) switch
-            {
-                "x86" => ProcessorArchitecture.X86,
-                "x64" => ProcessorArchitecture.X64,
-                "arm" => ProcessorArchitecture.Arm,
-                "arm64" => ProcessorArchitecture.Arm64,
-                _ => ProcessorArchitecture.Unknown
-            }) == ProcessorArchitecture.Unknown) return null;
+            if ((architecture = GetProcessorArchitecture(neutral ? product.Architecture : identity[2])) == ProcessorArchitecture.Unknown) return null;
 
             var key = $"{identity[0]}_{identity[2]}";
             if (!dictionary.ContainsKey(key)) dictionary.Add(key, new()
@@ -163,7 +150,7 @@ static class Store
         return updates.AsReadOnly();
     }
 
-    static ProcessorArchitecture GetArchitecture(string architecture) => architecture switch
+    static ProcessorArchitecture GetProcessorArchitecture(string architecture) => architecture switch
     {
         "x86" => ProcessorArchitecture.X86,
         "x64" => ProcessorArchitecture.X64,
