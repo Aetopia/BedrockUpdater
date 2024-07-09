@@ -9,40 +9,57 @@ using Windows.Management.Deployment;
 using System.Collections.ObjectModel;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Json;
+using Windows.System;
 
-interface IUpdate { string UpdateId { get; } }
+interface IUpdate { Tuple<string, string> Identity { get; } bool MainPackage { get; } }
 
 interface IProduct { string Title { get; } string AppCategoryId { get; } }
 
-file class Product(string title, string appCategoryId) : IProduct
+file class Product(string title, string appCategoryId, string architecture) : IProduct
 {
     public string Title => title;
 
     public string AppCategoryId => appCategoryId;
+
+    internal readonly string Architecture = architecture;
 }
 
-file class Update : IUpdate
+file class Update(ProcessorArchitecture architecture, string packageFamilyName, string version, bool mainPackage) : IUpdate
 {
-    string updateId;
+    Tuple<string, string> identity;
 
     internal string Id;
 
     internal DateTime Modified;
 
-    internal bool MainPackage;
+    internal readonly ProcessorArchitecture Architecture = architecture;
 
-    public string UpdateId { get { return updateId; } set { updateId = value; } }
+    internal readonly string PackageFamilyName = packageFamilyName;
+
+    internal readonly string Version = version;
+
+    public Tuple<string, string> Identity { get { return identity; } set { identity = value; } }
+
+    public bool MainPackage => mainPackage;
 }
 
 static class Store
 {
     internal static readonly PackageManager PackageManager = new();
 
-    static readonly string architecture = RuntimeInformation.OSArchitecture.ToString();
-
     static readonly string address = $"https://storeedgefd.dsx.mp.microsoft.com/v9.0/products/{{0}}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop";
 
     static readonly WebClient client = new() { BaseAddress = "https://fe3.delivery.mp.microsoft.com/ClientWebService/client.asmx/" };
+
+    static readonly Tuple<string, string> architectures = new(
+        RuntimeInformation.OSArchitecture.ToString().ToLowerInvariant(),
+        RuntimeInformation.OSArchitecture switch
+        {
+            Architecture.X64 => "x86",
+            Architecture.Arm64 => "arm64",
+            _ => null
+        }
+     );
 
     static string data;
 
@@ -53,11 +70,14 @@ static class Store
         {
             var payload = Deserialize(client.DownloadString(string.Format(address, productId)))["Payload"];
             var title = payload?["ShortTitle"]?.InnerText;
+            var enumerable = payload["Platforms"].Cast<XmlNode>().Select(node => node.InnerText);
 
             products.Add(new Product(
                 string.IsNullOrEmpty(title) ? payload["Title"].InnerText : title,
-                Deserialize(payload.GetElementsByTagName("FulfillmentData")[0].InnerText)["WuCategoryId"].InnerText)
-            );
+                Deserialize(payload.GetElementsByTagName("FulfillmentData")[0].InnerText)["WuCategoryId"].InnerText,
+                (enumerable.FirstOrDefault(item => item.Equals(architectures.Item1, StringComparison.OrdinalIgnoreCase)) ??
+                enumerable.FirstOrDefault(item => item.Equals(architectures.Item2, StringComparison.OrdinalIgnoreCase)))?.ToLowerInvariant()
+            ));
         }
 
         return products;
@@ -65,7 +85,7 @@ static class Store
 
     internal static string GetUrl(IUpdate update)
     {
-        return UploadString(Resources.GetExtendedUpdateInfo2.Replace("{1}", update.UpdateId), true)
+        return UploadString(string.Format(Resources.GetExtendedUpdateInfo2, update.Identity.Item1, update.Identity.Item2), true)
         .GetElementsByTagName("Url")
         .Cast<XmlNode>()
         .First(node => node.InnerText.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).InnerText;
@@ -73,50 +93,66 @@ static class Store
 
     internal static ReadOnlyCollection<IUpdate> GetUpdates(IProduct product)
     {
+        List<IUpdate> updates = [];
+        var obj = (Product)product;
+        if (obj.Architecture is null) goto _;
+
         var result = (XmlElement)UploadString(
-            (data ??= Resources.LoadString("SyncUpdates.xml").Replace("{1}", UploadString(Resources.LoadString("GetCookie.xml")).GetElementsByTagName("EncryptedData")[0].InnerText))
-            .Replace("{2}", product.AppCategoryId))
+            string.Format(
+                data ??= Resources.LoadString("SyncUpdates.xml").Replace("_", UploadString(Resources.LoadString("GetCookie.xml")).GetElementsByTagName("EncryptedData")[0].InnerText),
+                product.AppCategoryId))
             .GetElementsByTagName("SyncUpdatesResult")[0];
 
-        Dictionary<string, Update> updates = [];
+        ProcessorArchitecture architecture;
+        Dictionary<string, Update> dictionary = [];
         foreach (XmlNode node in result.GetElementsByTagName("AppxPackageInstallData"))
         {
             var element = (XmlElement)node.ParentNode.ParentNode.ParentNode;
             var file = element.GetElementsByTagName("File")[0];
 
             var identity = file.Attributes["InstallerSpecificIdentifier"].InnerText.Split('_');
-            if (!identity[2].Equals(architecture, StringComparison.OrdinalIgnoreCase) && !identity[2].Equals("neutral")) continue;
-            if (!updates.ContainsKey(identity[0])) updates.Add(identity[0], new());
+            var neutral = identity[2] == "neutral";
+            if (!neutral && identity[2] != architectures.Item1 && identity[2] != architectures.Item2) continue;
+            architecture = (neutral ? obj.Architecture : identity[2]) switch
+            {
+                "x64" => ProcessorArchitecture.X64,
+                "arm" => ProcessorArchitecture.Arm,
+                "arm64" => ProcessorArchitecture.Arm64,
+                _ => ProcessorArchitecture.X86
+            };
+
+            var key = $"{identity[0]}_{identity[2]}";
+            if (!dictionary.ContainsKey(key)) dictionary.Add(key, new(architecture, $"{identity[0]}_{identity[4]}", identity[1], node.Attributes["MainPackage"].InnerText == "true"));
 
             var modified = Convert.ToDateTime(file.Attributes["Modified"].InnerText);
-            if (updates[identity[0]].Modified < modified)
+            if (dictionary[key].Modified < modified)
             {
-                updates[identity[0]].Id = element["ID"].InnerText;
-                updates[identity[0]].Modified = modified;
-                updates[identity[0]].MainPackage = node.Attributes["MainPackage"].InnerText.Equals("true");
+                dictionary[key].Id = element["ID"].InnerText;
+                dictionary[key].Modified = modified;
             }
         }
+
+        architecture = dictionary.First(item => item.Value.MainPackage).Value.Architecture;
+        var items = dictionary.Select(item => item.Value).Where(item => item.Architecture == architecture);
 
         foreach (XmlNode node in result.GetElementsByTagName("SecuredFragment"))
         {
             var element = (XmlElement)node.ParentNode.ParentNode.ParentNode;
-            var update = updates.FirstOrDefault(update => update.Value.Id.Equals(element["ID"].InnerText));
-            if (update.Value == null) continue;
+            var update = items.FirstOrDefault(item => item.Id == element["ID"].InnerText);
+            if (update is null) continue;
 
-            var identity = element.GetElementsByTagName("AppxMetadata")[0].Attributes["PackageMoniker"].InnerText.Split('_');
-            var package = PackageManager.FindPackagesForUser(string.Empty, $"{identity[0]}_{identity[4]}").FirstOrDefault();
+            var package = PackageManager.FindPackagesForUser(string.Empty, update.PackageFamilyName).FirstOrDefault(package => package.Id.Architecture == update.Architecture);
 
-            if (package == null || (!package.IsDevelopmentMode && new Version(identity[1]) > new Version(package.Id.Version.Major, package.Id.Version.Minor, package.Id.Version.Build, package.Id.Version.Revision)))
-                updates[update.Key].UpdateId = element.GetElementsByTagName("UpdateIdentity")[0].Attributes["UpdateID"].InnerText;
-            else if (update.Value.MainPackage) return new([]);
+            if (package is null || (!package.IsDevelopmentMode && new Version(update.Version) > new Version(package.Id.Version.Major, package.Id.Version.Minor, package.Id.Version.Build, package.Id.Version.Revision)))
+            {
+                var attributes = element.GetElementsByTagName("UpdateIdentity")[0].Attributes;
+                update.Identity = new(attributes["UpdateID"].InnerText, attributes["RevisionNumber"].InnerText);
+                updates.Add(update);
+            }
+            else if (update.MainPackage) goto _;
         }
 
-        return updates
-        .Select(update => update.Value)
-        .Where(update => update.UpdateId != null)
-        .OrderBy(update => update.MainPackage)
-        .ToList<IUpdate>()
-        .AsReadOnly();
+    _: updates.Sort((x, y) => x.MainPackage ? 1 : -1); return updates.AsReadOnly();
     }
 
     static XmlElement Deserialize(string input)

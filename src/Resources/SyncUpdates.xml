@@ -14,7 +14,7 @@
     <s:Body>
         <SyncUpdates xmlns="http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService">
             <cookie>
-                <EncryptedData>{1}</EncryptedData>
+                <EncryptedData>_</EncryptedData>
             </cookie>
             <parameters>
                 <InstalledNonLeafUpdateIDs>
@@ -22,10 +22,11 @@
                     <int>2</int>
                     <int>11</int>
                     <int>23110993</int>
+                    <int>133399034</int>
                 </InstalledNonLeafUpdateIDs>
                 <FilterAppCategoryIds>
                     <CategoryIdentifier>
-                        <Id>{2}</Id>
+                        <Id>{0}</Id>
                     </CategoryIdentifier>
                 </FilterAppCategoryIds>
                 <TreatAppCategoryIdsAsInstalled>true</TreatAppCategoryIdsAsInstalled>

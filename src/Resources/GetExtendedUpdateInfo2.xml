@@ -15,8 +15,8 @@
         <GetExtendedUpdateInfo2 xmlns="http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService">
             <updateIDs>
                 <UpdateIdentity>
-                    <UpdateID>{1}</UpdateID>
-                    <RevisionNumber>1</RevisionNumber>
+                    <UpdateID>{0}</UpdateID>
+                    <RevisionNumber>{1}</RevisionNumber>
                 </UpdateIdentity>
             </updateIDs>
             <infoTypes>
