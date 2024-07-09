@@ -52,7 +52,15 @@ static class Store
 
     static readonly WebClient client = new() { BaseAddress = "https://fe3.delivery.mp.microsoft.com/ClientWebService/client.asmx/" };
 
-    static readonly (string, string) architectures = (RuntimeInformation.OSArchitecture.ToString().ToLowerInvariant(), RuntimeInformation.OSArchitecture switch { Architecture.X64 => "x86", Architecture.Arm64 => "arm64", _ => null });
+    static readonly (string, string) runtime = (
+        RuntimeInformation.OSArchitecture.ToString().ToLowerInvariant(),
+        RuntimeInformation.OSArchitecture switch { Architecture.X64 => "x86", Architecture.Arm64 => "arm", _ => null }
+    );
+
+    static readonly (ProcessorArchitecture, ProcessorArchitecture) processor = (
+        GetArchitecture(runtime.Item1),
+        GetArchitecture(runtime.Item2)
+    );
 
     static string data;
 
@@ -70,8 +78,8 @@ static class Store
             {
                 Title = string.IsNullOrEmpty(title) ? payload["Title"].InnerText : title,
                 AppCategoryId = Deserialize(payload.GetElementsByTagName("FulfillmentData")[0].InnerText)["WuCategoryId"].InnerText,
-                Architecture = (enumerable.FirstOrDefault(item => item.Equals(architectures.Item1, StringComparison.OrdinalIgnoreCase)) ??
-                enumerable.FirstOrDefault(item => item.Equals(architectures.Item2, StringComparison.OrdinalIgnoreCase)))?.ToLowerInvariant()
+                Architecture = (enumerable.FirstOrDefault(item => item.Equals(runtime.Item1, StringComparison.OrdinalIgnoreCase)) ??
+                enumerable.FirstOrDefault(item => item.Equals(runtime.Item2, StringComparison.OrdinalIgnoreCase)))?.ToLowerInvariant()
             });
         }
 
@@ -104,14 +112,15 @@ static class Store
 
             var identity = file.Attributes["InstallerSpecificIdentifier"].InnerText.Split('_');
             var neutral = identity[2] == "neutral";
-            if (!neutral && identity[2] != architectures.Item1 && identity[2] != architectures.Item2) continue;
-            architecture = (neutral ? product.Architecture : identity[2]) switch
+            if (!neutral && identity[2] != runtime.Item1 && identity[2] != runtime.Item2) continue;
+            if ((architecture = (neutral ? product.Architecture : identity[2]) switch
             {
+                "x86" => ProcessorArchitecture.X86,
                 "x64" => ProcessorArchitecture.X64,
                 "arm" => ProcessorArchitecture.Arm,
                 "arm64" => ProcessorArchitecture.Arm64,
-                _ => ProcessorArchitecture.X86
-            };
+                _ => ProcessorArchitecture.Unknown
+            }) == ProcessorArchitecture.Unknown) return null;
 
             var key = $"{identity[0]}_{identity[2]}";
             if (!dictionary.ContainsKey(key)) dictionary.Add(key, new()
@@ -130,7 +139,8 @@ static class Store
             }
         }
 
-        architecture = dictionary.First(item => item.Value.MainPackage).Value.Architecture;
+        var packages = dictionary.Where(item => item.Value.MainPackage).Select(item => item.Value);
+        architecture = (packages.FirstOrDefault(item => item.Architecture == processor.Item1) ?? packages.FirstOrDefault(item => item.Architecture == processor.Item2)).Architecture;
         var items = dictionary.Select(item => item.Value).Where(item => item.Architecture == architecture);
         List<UpdateIdentity> updates = [];
 
@@ -152,6 +162,15 @@ static class Store
         updates.Sort((x, y) => x.MainPackage ? 1 : -1);
         return updates.AsReadOnly();
     }
+
+    static ProcessorArchitecture GetArchitecture(string architecture) => architecture switch
+    {
+        "x86" => ProcessorArchitecture.X86,
+        "x64" => ProcessorArchitecture.X64,
+        "arm" => ProcessorArchitecture.Arm,
+        "arm64" => ProcessorArchitecture.Arm64,
+        _ => ProcessorArchitecture.Unknown
+    };
 
     static XmlElement Deserialize(string input)
     {
