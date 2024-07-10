@@ -17,13 +17,13 @@ class MainWindow : Window
     {
         int value = 0;
         while (bytes >= 1024f) { bytes /= 1024f; value++; }
-        return string.Format($"{bytes:0.00} {(Units)value}");
+        return $"{bytes:0.00} {(Units)value}";
     }
 
     internal MainWindow(bool preview)
     {
         UseLayoutRounding = true;
-        Icon = global::Resources.LoadImageSource(".ico");
+        Icon = global::Resources.GetImageSource(".ico");
         Title = preview ? "Bedrock Updater Preview" : "Bedrock Updater";
         Background = new SolidColorBrush(Color.FromRgb(30, 30, 30));
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
@@ -36,7 +36,7 @@ class MainWindow : Window
 
         WindowsFormsHost host = new()
         {
-            Child = new System.Windows.Forms.WebBrowser { ScrollBarsEnabled = false, DocumentText = global::Resources.LoadString("Document.html") },
+            Child = new System.Windows.Forms.WebBrowser { ScrollBarsEnabled = false, DocumentText = global::Resources.GetString("Document.html.gz") },
             IsEnabled = false
         };
         Grid.SetRow(host, 0);
@@ -64,7 +64,7 @@ class MainWindow : Window
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Left,
             Margin = new(16, 0, 0, 1),
-            Foreground = Brushes.White
+            Foreground = Brushes.White,
         };
         grid2.Children.Add(textBlock1);
 
@@ -111,6 +111,15 @@ class MainWindow : Window
             NativeMethods.DeleteFile(packageUri?.AbsolutePath);
             foreach (var package in Store.PackageManager.FindPackagesForUserWithPackageTypes(string.Empty, PackageTypes.Framework))
                 _ = Store.PackageManager.RemovePackageAsync(package.Id.FullName);
+        };
+
+        Dispatcher.UnhandledException += (sender, e) =>
+        {
+            progressBar.IsIndeterminate = false;
+            progressBar.Value = 100;
+            progressBar.Foreground = new SolidColorBrush(Color.FromRgb(133, 0, 0));
+            textBlock1.Text = "One or more errors occurred.";
+            textBlock2.Text = default;
         };
 
         ContentRendered += async (sender, e) => await Task.Run(() =>

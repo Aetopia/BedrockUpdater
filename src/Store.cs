@@ -10,7 +10,6 @@ using Windows.Management.Deployment;
 using System.Collections.ObjectModel;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Json;
-using System.IO.Packaging;
 
 struct Product
 {
@@ -23,7 +22,7 @@ struct Product
 
 struct UpdateIdentity
 {
-    internal string UpdateId;
+    internal string UpdateID;
 
     internal string RevisionNumber;
 
@@ -32,7 +31,7 @@ struct UpdateIdentity
 
 class Update
 {
-    internal string Id;
+    internal string ID;
 
     internal DateTime Modified;
 
@@ -53,14 +52,23 @@ static class Store
 
     static readonly WebClient client = new() { BaseAddress = "https://fe3.delivery.mp.microsoft.com/ClientWebService/client.asmx/" };
 
-    static readonly (string, string) runtime = (RuntimeInformation.OSArchitecture.ToString().ToLowerInvariant(), RuntimeInformation.OSArchitecture switch
-    {
-        Architecture.X64 => "x86",
-        Architecture.Arm64 => "arm",
-        _ => null
-    });
-
-    static readonly (ProcessorArchitecture, ProcessorArchitecture) processor = (GetProcessorArchitecture(runtime.Item1), GetProcessorArchitecture(runtime.Item2));
+    static readonly ((string Native, string Compatible) OS, (ProcessorArchitecture Native, ProcessorArchitecture Compatible) Processor) architectures = (
+        (RuntimeInformation.OSArchitecture.ToString().ToLowerInvariant(), RuntimeInformation.OSArchitecture switch { Architecture.X64 => "x86", Architecture.Arm64 => "arm", _ => null }),
+        (RuntimeInformation.OSArchitecture switch
+        {
+            Architecture.X86 => ProcessorArchitecture.X86,
+            Architecture.X64 => ProcessorArchitecture.X64,
+            Architecture.Arm => ProcessorArchitecture.Arm,
+            Architecture.Arm64 => ProcessorArchitecture.Arm64,
+            _ => ProcessorArchitecture.Unknown
+        },
+        RuntimeInformation.OSArchitecture switch
+        {
+            Architecture.X64 => ProcessorArchitecture.X86,
+            Architecture.Arm64 => ProcessorArchitecture.Arm,
+            _ => ProcessorArchitecture.Unknown
+        })
+    );
 
     static string data;
 
@@ -78,8 +86,8 @@ static class Store
             {
                 Title = string.IsNullOrEmpty(title) ? payload["Title"].InnerText : title,
                 AppCategoryId = Deserialize(payload.GetElementsByTagName("FulfillmentData")[0].InnerText)["WuCategoryId"].InnerText,
-                Architecture = (enumerable.FirstOrDefault(item => item.Equals(runtime.Item1, StringComparison.OrdinalIgnoreCase)) ??
-                enumerable.FirstOrDefault(item => item.Equals(runtime.Item2, StringComparison.OrdinalIgnoreCase)))?.ToLowerInvariant()
+                Architecture = (enumerable.FirstOrDefault(item => item.Equals(architectures.OS.Native, StringComparison.OrdinalIgnoreCase)) ??
+                enumerable.FirstOrDefault(item => item.Equals(architectures.OS.Compatible, StringComparison.OrdinalIgnoreCase)))?.ToLowerInvariant()
             });
         }
 
@@ -88,7 +96,7 @@ static class Store
 
     internal static string GetUrl(UpdateIdentity update)
     {
-        return UploadString(string.Format(Resources.GetExtendedUpdateInfo2, update.UpdateId, update.RevisionNumber), true)
+        return UploadString(string.Format(Resources.GetExtendedUpdateInfo2, update.UpdateID, update.RevisionNumber), true)
         .GetElementsByTagName("Url")
         .Cast<XmlNode>()
         .First(node => node.InnerText.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).InnerText;
@@ -99,7 +107,7 @@ static class Store
         if (product.Architecture is null) return new([]);
         var result = (XmlElement)UploadString(
             string.Format(
-                data ??= string.Format(Resources.LoadString("SyncUpdates.xml"), UploadString(Resources.LoadString("GetCookie.xml")).GetElementsByTagName("EncryptedData")[0].InnerText, "{0}"),
+                data ??= string.Format(Resources.GetString("SyncUpdates.xml.gz"), UploadString(Resources.GetString("GetCookie.xml.gz")).GetElementsByTagName("EncryptedData")[0].InnerText, "{0}"),
                 product.AppCategoryId))
             .GetElementsByTagName("SyncUpdatesResult")[0];
 
@@ -112,8 +120,15 @@ static class Store
 
             var identity = file.Attributes["InstallerSpecificIdentifier"].InnerText.Split('_');
             var neutral = identity[2] == "neutral";
-            if (!neutral && identity[2] != runtime.Item1 && identity[2] != runtime.Item2) continue;
-            if ((architecture = GetProcessorArchitecture(neutral ? product.Architecture : identity[2])) == ProcessorArchitecture.Unknown) return null;
+            if (!neutral && identity[2] != architectures.OS.Native && identity[2] != architectures.OS.Compatible) continue;
+            if ((architecture = (neutral ? product.Architecture : identity[2]) switch
+            {
+                "x86" => ProcessorArchitecture.X86,
+                "x64" => ProcessorArchitecture.X64,
+                "arm" => ProcessorArchitecture.Arm,
+                "arm64" => ProcessorArchitecture.Arm64,
+                _ => ProcessorArchitecture.Unknown
+            }) == ProcessorArchitecture.Unknown) return new([]);
 
             var key = $"{identity[0]}_{identity[2]}";
             if (!dictionary.ContainsKey(key)) dictionary.Add(key, new()
@@ -127,28 +142,34 @@ static class Store
             var modified = Convert.ToDateTime(file.Attributes["Modified"].InnerText);
             if (dictionary[key].Modified < modified)
             {
-                dictionary[key].Id = element["ID"].InnerText;
+                dictionary[key].ID = element["ID"].InnerText;
                 dictionary[key].Modified = modified;
             }
         }
 
         var values = dictionary.Where(item => item.Value.MainPackage).Select(item => item.Value);
-        architecture = (values.FirstOrDefault(value => value.Architecture == processor.Item1) ?? values.FirstOrDefault(value => value.Architecture == processor.Item2)).Architecture;
+        architecture = (values.FirstOrDefault(value => value.Architecture == architectures.Processor.Native) ?? values.FirstOrDefault(value => value.Architecture == architectures.Processor.Compatible)).Architecture;
         var items = dictionary.Select(item => item.Value).Where(item => item.Architecture == architecture);
         List<UpdateIdentity> updates = [];
 
         foreach (XmlNode node in result.GetElementsByTagName("SecuredFragment"))
         {
             var element = (XmlElement)node.ParentNode.ParentNode.ParentNode;
-            var item = items.FirstOrDefault(item => item.Id == element["ID"].InnerText);
+            var item = items.FirstOrDefault(item => item.ID == element["ID"].InnerText);
             if (item is null) continue;
 
             var packages = PackageManager.FindPackagesForUser(string.Empty, item.PackageFamilyName);
             var package = item.MainPackage ? packages.SingleOrDefault() : packages.FirstOrDefault(package => package.Id.Architecture == item.Architecture);
-            if (package is null || (!package.IsDevelopmentMode && new Version(item.Version) > new Version(package.Id.Version.Major, package.Id.Version.Minor, package.Id.Version.Build, package.Id.Version.Revision)))
+            if (package is null || (!package.IsDevelopmentMode &&
+                new Version(item.Version) > new Version(package.Id.Version.Major, package.Id.Version.Minor, package.Id.Version.Build, package.Id.Version.Revision)))
             {
                 var attributes = element.GetElementsByTagName("UpdateIdentity")[0].Attributes;
-                updates.Add(new() { UpdateId = attributes["UpdateID"].InnerText, RevisionNumber = attributes["RevisionNumber"].InnerText, MainPackage = item.MainPackage });
+                updates.Add(new()
+                {
+                    UpdateID = attributes["UpdateID"].InnerText,
+                    RevisionNumber = attributes["RevisionNumber"].InnerText,
+                    MainPackage = item.MainPackage
+                });
             }
             else if (item.MainPackage) return new([]);
         }
@@ -156,15 +177,6 @@ static class Store
         updates.Sort((x, y) => x.MainPackage ? 1 : -1);
         return updates.AsReadOnly();
     }
-
-    static ProcessorArchitecture GetProcessorArchitecture(string architecture) => architecture switch
-    {
-        "x86" => ProcessorArchitecture.X86,
-        "x64" => ProcessorArchitecture.X64,
-        "arm" => ProcessorArchitecture.Arm,
-        "arm64" => ProcessorArchitecture.Arm64,
-        _ => ProcessorArchitecture.Unknown
-    };
 
     static XmlElement Deserialize(string input)
     {

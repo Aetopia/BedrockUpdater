@@ -12,7 +12,7 @@
     <ApplicationManifest>Resources/.manifest</ApplicationManifest>
     <ApplicationIcon>Resources/.ico</ApplicationIcon>
 
-    <AssemblyVersion>1.1.6.3</AssemblyVersion>
+    <AssemblyVersion>1.1.7</AssemblyVersion>
     <AssemblyTitle>Bedrock Updater</AssemblyTitle>
     <Product>Bedrock Updater</Product>
     <Copyright>Copyright (C) 2024</Copyright>
@@ -22,20 +22,20 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Resources/GetExtendedUpdateInfo2.xml">
-      <LogicalName>GetExtendedUpdateInfo2.xml</LogicalName>
+    <EmbeddedResource Include="Resources/GetExtendedUpdateInfo2.xml.gz">
+      <LogicalName>GetExtendedUpdateInfo2.xml.gz</LogicalName>
     </EmbeddedResource>
 
-    <EmbeddedResource Include="Resources/GetCookie.xml">
-      <LogicalName>GetCookie.xml</LogicalName>
+    <EmbeddedResource Include="Resources/GetCookie.xml.gz">
+      <LogicalName>GetCookie.xml.gz</LogicalName>
     </EmbeddedResource>
 
-    <EmbeddedResource Include="Resources/SyncUpdates.xml">
-      <LogicalName>SyncUpdates.xml</LogicalName>
+    <EmbeddedResource Include="Resources/SyncUpdates.xml.gz">
+      <LogicalName>SyncUpdates.xml.gz</LogicalName>
     </EmbeddedResource>
 
-    <EmbeddedResource Include="Resources/Document.html">
-      <LogicalName>Document.html</LogicalName>
+    <EmbeddedResource Include="Resources/Document.html.gz">
+      <LogicalName>Document.html.gz</LogicalName>
     </EmbeddedResource>
 
     <EmbeddedResource Include="Resources/.ico">
