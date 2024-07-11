@@ -7,7 +7,6 @@ using Windows.System;
 using Windows.System.UserProfile;
 using System.Collections.Generic;
 using Windows.Management.Deployment;
-using System.Collections.ObjectModel;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Json;
 
@@ -46,6 +45,8 @@ class Update
 
 static class Store
 {
+    static string data;
+
     internal static readonly PackageManager PackageManager = new();
 
     static readonly string address = $"https://storeedgefd.dsx.mp.microsoft.com/v9.0/products/{{0}}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop";
@@ -70,25 +71,23 @@ static class Store
         })
     );
 
-    static string data;
-
     internal static IEnumerable<Product> GetProducts(params string[] productIds)
     {
-        ICollection<Product> products = [];
+        var products = new Product[productIds.Length];
 
-        foreach (var productId in productIds)
+        for (int i = 0; i < productIds.Length; i++)
         {
-            var payload = Deserialize(client.DownloadString(string.Format(address, productId)))["Payload"];
+            var payload = Deserialize(client.DownloadString(string.Format(address, productIds[i])))["Payload"];
             var title = payload?["ShortTitle"]?.InnerText;
             var enumerable = payload["Platforms"].Cast<XmlNode>().Select(node => node.InnerText);
 
-            products.Add(new Product()
+            products[i] = new()
             {
                 Title = string.IsNullOrEmpty(title) ? payload["Title"].InnerText : title,
                 AppCategoryId = Deserialize(payload.GetElementsByTagName("FulfillmentData")[0].InnerText)["WuCategoryId"].InnerText,
                 Architecture = (enumerable.FirstOrDefault(item => item.Equals(architectures.OS.Native, StringComparison.OrdinalIgnoreCase)) ??
                 enumerable.FirstOrDefault(item => item.Equals(architectures.OS.Compatible, StringComparison.OrdinalIgnoreCase)))?.ToLowerInvariant()
-            });
+            };
         }
 
         return products;
@@ -102,9 +101,9 @@ static class Store
         .First(node => node.InnerText.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).InnerText;
     }
 
-    internal static ReadOnlyCollection<UpdateIdentity> GetUpdates(Product product)
+    internal static IList<UpdateIdentity> GetUpdates(Product product)
     {
-        if (product.Architecture is null) return new([]);
+        if (product.Architecture is null) return [];
         var result = (XmlElement)UploadString(
             string.Format(
                 data ??= string.Format(Resources.GetString("SyncUpdates.xml.gz"), UploadString(Resources.GetString("GetCookie.xml.gz")).GetElementsByTagName("EncryptedData")[0].InnerText, "{0}"),
@@ -128,7 +127,7 @@ static class Store
                 "arm" => ProcessorArchitecture.Arm,
                 "arm64" => ProcessorArchitecture.Arm64,
                 _ => ProcessorArchitecture.Unknown
-            }) == ProcessorArchitecture.Unknown) return new([]);
+            }) == ProcessorArchitecture.Unknown) return [];
 
             var key = $"{identity[0]}_{identity[2]}";
             if (!dictionary.ContainsKey(key)) dictionary.Add(key, new()
@@ -171,11 +170,11 @@ static class Store
                     MainPackage = item.MainPackage
                 });
             }
-            else if (item.MainPackage) return new([]);
+            else if (item.MainPackage) return [];
         }
 
         updates.Sort((x, y) => x.MainPackage ? 1 : -1);
-        return updates.AsReadOnly();
+        return updates;
     }
 
     static XmlElement Deserialize(string input)
