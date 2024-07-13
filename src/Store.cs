@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Net;
 using System.Xml;
 using System.Linq;
@@ -9,7 +10,6 @@ using System.Collections.Generic;
 using Windows.Management.Deployment;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Json;
-using System.IO;
 
 struct Product
 {
