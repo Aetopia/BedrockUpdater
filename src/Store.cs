@@ -151,7 +151,7 @@ static class Store
         var values = dictionary.Where(item => item.Value.MainPackage).Select(item => item.Value);
         architecture = (values.FirstOrDefault(value => value.Architecture == architectures.Processor.Native) ?? values.FirstOrDefault(value => value.Architecture == architectures.Processor.Compatible)).Architecture;
         var items = dictionary.Select(item => item.Value).Where(item => item.Architecture == architecture);
-        
+
         List<UpdateIdentity> updates = [];
 
         foreach (XmlNode node in result.GetElementsByTagName("SecuredFragment"))
