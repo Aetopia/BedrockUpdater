@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using Windows.Management.Deployment;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Json;
+using System.IO;
 
 struct Product
 {
@@ -116,6 +117,7 @@ static class Store
         {
             var element = (XmlElement)node.ParentNode.ParentNode.ParentNode;
             var file = element.GetElementsByTagName("File")[0];
+            if (Path.GetExtension(file.Attributes["FileName"].InnerText).StartsWith(".e", StringComparison.OrdinalIgnoreCase)) continue;
 
             var identity = file.Attributes["InstallerSpecificIdentifier"].InnerText.Split('_');
             var neutral = identity[2] == "neutral";
