@@ -124,7 +124,7 @@ class MainWindow : Window
 
         ContentRendered += async (sender, e) => await Task.Run(() =>
         {
-            foreach (var product in Store.GetProducts("9WZDNCRD1HKW", preview ? "9P5X4QVLC2XR" : "9NBLGGH2JHXJ"))
+            foreach (var product in Store.GetProducts("9nmr79ztjftc"/*, "9WZDNCRD1HKW", preview ? "9P5X4QVLC2XR" : "9NBLGGH2JHXJ"*/))
             {
                 Dispatcher.Invoke(() =>
                 {
