@@ -117,19 +117,19 @@ static class Store
         {
             var element = (XmlElement)node.ParentNode.ParentNode.ParentNode;
             var file = element.GetElementsByTagName("File")[0];
-            if (Path.GetExtension(file.Attributes["FileName"].InnerText).StartsWith(".e", StringComparison.OrdinalIgnoreCase)) continue;
+            if (Path.GetExtension(file.Attributes["FileName"].InnerText).StartsWith(".e", StringComparison.Ordinal)) continue;
 
             var identity = file.Attributes["InstallerSpecificIdentifier"].InnerText.Split('_');
             var neutral = identity[2] == "neutral";
             if (!neutral && identity[2] != architectures.OS.Native && identity[2] != architectures.OS.Compatible) continue;
-            if ((architecture = (neutral ? product.Architecture : identity[2]) switch
+            architecture = (neutral ? product.Architecture : identity[2]) switch
             {
                 "x86" => ProcessorArchitecture.X86,
                 "x64" => ProcessorArchitecture.X64,
                 "arm" => ProcessorArchitecture.Arm,
                 "arm64" => ProcessorArchitecture.Arm64,
                 _ => ProcessorArchitecture.Unknown
-            }) == ProcessorArchitecture.Unknown) return [];
+            };
 
             var key = $"{identity[0]}_{identity[2]}";
             if (!dictionary.ContainsKey(key)) dictionary.Add(key, new()
@@ -151,6 +151,7 @@ static class Store
         var values = dictionary.Where(item => item.Value.MainPackage).Select(item => item.Value);
         architecture = (values.FirstOrDefault(value => value.Architecture == architectures.Processor.Native) ?? values.FirstOrDefault(value => value.Architecture == architectures.Processor.Compatible)).Architecture;
         var items = dictionary.Select(item => item.Value).Where(item => item.Architecture == architecture);
+        
         List<UpdateIdentity> updates = [];
 
         foreach (XmlNode node in result.GetElementsByTagName("SecuredFragment"))
