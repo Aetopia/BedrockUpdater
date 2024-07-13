@@ -117,7 +117,7 @@ static class Store
         {
             var element = (XmlElement)node.ParentNode.ParentNode.ParentNode;
             var file = element.GetElementsByTagName("File")[0];
-            if (file.Attributes["FileName"].InnerText.IndexOf(".e", StringComparison.OrdinalIgnoreCase) != -1) continue;
+            if (Path.GetExtension(file.Attributes["FileName"].InnerText).StartsWith(".e", StringComparison.OrdinalIgnoreCase)) continue;
 
             var identity = file.Attributes["InstallerSpecificIdentifier"].InnerText.Split('_');
             var neutral = identity[2] == "neutral";
