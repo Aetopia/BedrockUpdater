@@ -13,11 +13,10 @@ class MainWindow : Window
 {
     enum Units { B, KB, MB, GB }
 
-    static string Format(float bytes)
+    static string Format(float value)
     {
-        int value = 0;
-        while (bytes >= 1024f) { bytes /= 1024f; value++; }
-        return $"{bytes:0.00} {(Units)value}";
+        var unit = (int)Math.Log(value, 1024);
+        return $"{value / Math.Pow(1024, unit):0.00} {(Units)unit}";
     }
 
     internal MainWindow(bool preview)
@@ -111,15 +110,6 @@ class MainWindow : Window
             NativeMethods.DeleteFile(packageUri?.AbsolutePath);
             foreach (var package in Store.PackageManager.FindPackagesForUserWithPackageTypes(string.Empty, PackageTypes.Framework))
                 _ = Store.PackageManager.RemovePackageAsync(package.Id.FullName);
-        };
-
-        Dispatcher.UnhandledException += (sender, e) =>
-        {
-            progressBar.IsIndeterminate = false;
-            progressBar.Value = 100;
-            progressBar.Foreground = new SolidColorBrush(Color.FromRgb(133, 0, 0));
-            textBlock1.Text = "One or more errors occurred.";
-            textBlock2.Text = default;
         };
 
         ContentRendered += async (sender, e) => await Task.Run(() =>
