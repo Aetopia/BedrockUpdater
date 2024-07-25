@@ -23,7 +23,7 @@ class MainWindow : Window
     {
         UseLayoutRounding = true;
         Icon = global::Resources.GetImageSource(".ico");
-        Title = preview ? "Bedrock Updater Preview" : "Bedrock Updater";
+        Title = $"Bedrock Updater ({(preview ? "Preview" : "Release")})";
         Background = new SolidColorBrush(Color.FromRgb(30, 30, 30));
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         ResizeMode = ResizeMode.NoResize;
@@ -35,7 +35,11 @@ class MainWindow : Window
 
         WindowsFormsHost host = new()
         {
-            Child = new System.Windows.Forms.WebBrowser { ScrollBarsEnabled = false, DocumentText = global::Resources.GetString("Document.html.gz") },
+            Child = new System.Windows.Forms.WebBrowser
+            {
+                ScrollBarsEnabled = false,
+                DocumentText = global::Resources.GetString("Document.html.gz")
+            },
             IsEnabled = false
         };
         Grid.SetRow(host, 0);
@@ -59,7 +63,7 @@ class MainWindow : Window
 
         TextBlock textBlock1 = new()
         {
-            Text = "Connecting...",
+            Text = "Preparing...",
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Left,
             Margin = new(16, 0, 0, 1),
@@ -119,7 +123,7 @@ class MainWindow : Window
                 Dispatcher.Invoke(() =>
                 {
                     progressBar.IsIndeterminate = true;
-                    textBlock1.Text = $"Updating {product.Title}...";
+                    textBlock1.Text = $"Preparing {product.Title}...";
                     textBlock2.Text = default;
                 });
                 var updates = Store.GetUpdates(product);
@@ -130,7 +134,7 @@ class MainWindow : Window
                     Dispatcher.Invoke(() =>
                     {
                         textBlock1.Text = "Downloading...";
-                        textBlock2.Text = $"{i + 1} of {updates.Count}";
+                        textBlock2.Text = updates.Count != 1 ? $"{i + 1} / {updates.Count}" : null;
                         progressBar.Value = 0;
                     });
 
@@ -138,7 +142,7 @@ class MainWindow : Window
                     {
                         client.DownloadFileTaskAsync(Store.GetUrl(updates[i]), (packageUri = new(Path.GetTempFileName())).AbsolutePath).Wait();
                         operation = Store.PackageManager.AddPackageAsync(packageUri, null, DeploymentOptions.ForceApplicationShutdown);
-                        operation.Progress += (sender, e) => Dispatcher.Invoke(() => { if (progressBar.Value != e.percentage) textBlock1.Text = $"Installing {progressBar.Value = e.percentage}%"; });
+                        operation.Progress += (sender, e) => Dispatcher.Invoke(() => { if (progressBar.Value != e.percentage) progressBar.Value = e.percentage; });
                         operation.AsTask().Wait();
                     }
                     finally { NativeMethods.DeleteFile(packageUri.AbsolutePath); }

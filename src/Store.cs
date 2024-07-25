@@ -54,25 +54,33 @@ static class Store
 
     static readonly WebClient client = new() { BaseAddress = "https://fe3.delivery.mp.microsoft.com/ClientWebService/client.asmx/" };
 
-    static readonly ((string Native, string Compatible) OS, (ProcessorArchitecture Native, ProcessorArchitecture Compatible) Processor) architectures = (
-        (RuntimeInformation.OSArchitecture.ToString().ToLowerInvariant(), RuntimeInformation.OSArchitecture switch { Architecture.X64 => "x86", Architecture.Arm64 => "arm", _ => null }),
-        (RuntimeInformation.OSArchitecture switch
-        {
-            Architecture.X86 => ProcessorArchitecture.X86,
-            Architecture.X64 => ProcessorArchitecture.X64,
-            Architecture.Arm => ProcessorArchitecture.Arm,
-            Architecture.Arm64 => ProcessorArchitecture.Arm64,
-            _ => ProcessorArchitecture.Unknown
-        },
-        RuntimeInformation.OSArchitecture switch
-        {
-            Architecture.X64 => ProcessorArchitecture.X86,
-            Architecture.Arm64 => ProcessorArchitecture.Arm,
-            _ => ProcessorArchitecture.Unknown
-        })
+    static readonly (
+        (string String, ProcessorArchitecture Architecture) Native,
+        (string String, ProcessorArchitecture Architecture) Compatible
+    ) architectures = (
+        (
+            RuntimeInformation.OSArchitecture.ToString().ToLowerInvariant(),
+            RuntimeInformation.OSArchitecture switch
+            {
+                Architecture.X86 => ProcessorArchitecture.X86,
+                Architecture.X64 => ProcessorArchitecture.X64,
+                Architecture.Arm => ProcessorArchitecture.Arm,
+                Architecture.Arm64 => ProcessorArchitecture.Arm64,
+                _ => ProcessorArchitecture.Unknown
+            }
+        ),
+        (
+            RuntimeInformation.OSArchitecture switch { Architecture.X64 => "x86", Architecture.Arm64 => "arm", _ => null },
+            RuntimeInformation.OSArchitecture switch
+            {
+                Architecture.X64 => ProcessorArchitecture.X86,
+                Architecture.Arm64 => ProcessorArchitecture.Arm,
+                _ => ProcessorArchitecture.Unknown
+            }
+        )
     );
 
-    internal static IEnumerable<Product> GetProducts(params string[] productIds)
+    internal static Product[] GetProducts(params string[] productIds)
     {
         var products = new Product[productIds.Length];
 
@@ -86,29 +94,27 @@ static class Store
             {
                 Title = string.IsNullOrEmpty(title) ? payload["Title"].InnerText : title,
                 AppCategoryId = Deserialize(payload.GetElementsByTagName("FulfillmentData")[0].InnerText)["WuCategoryId"].InnerText,
-                Architecture = (enumerable.FirstOrDefault(item => item.Equals(architectures.OS.Native, StringComparison.OrdinalIgnoreCase)) ??
-                enumerable.FirstOrDefault(item => item.Equals(architectures.OS.Compatible, StringComparison.OrdinalIgnoreCase)))?.ToLowerInvariant()
+                Architecture = (enumerable.FirstOrDefault(item => item.Equals(architectures.Native.String, StringComparison.OrdinalIgnoreCase)) ??
+                enumerable.FirstOrDefault(item => item.Equals(architectures.Compatible.String, StringComparison.OrdinalIgnoreCase)))?.ToLowerInvariant()
             };
         }
 
         return products;
     }
 
-    internal static string GetUrl(UpdateIdentity update)
-    {
-        return UploadString(string.Format(Resources.GetExtendedUpdateInfo2, update.UpdateID, update.RevisionNumber), true)
-        .GetElementsByTagName("Url")
-        .Cast<XmlNode>()
-        .First(node => node.InnerText.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).InnerText;
-    }
+    internal static string GetUrl(UpdateIdentity update) =>
+    UploadString(string.Format(Resources.GetExtendedUpdateInfo2, update.UpdateID, update.RevisionNumber), true)
+    .GetElementsByTagName("Url")
+    .Cast<XmlNode>()
+    .First(node => node.InnerText.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).InnerText;
 
-    internal static IList<UpdateIdentity> GetUpdates(Product product)
+    internal static List<UpdateIdentity> GetUpdates(Product product)
     {
         if (product.Architecture is null) return [];
         var result = (XmlElement)UploadString(
             string.Format(
                 data ??= string.Format(Resources.GetString("SyncUpdates.xml.gz"), UploadString(Resources.GetString("GetCookie.xml.gz")).GetElementsByTagName("EncryptedData")[0].InnerText, "{0}"),
-                product.AppCategoryId))
+                product.AppCategoryId), false)
             .GetElementsByTagName("SyncUpdatesResult")[0];
 
         ProcessorArchitecture architecture;
@@ -121,7 +127,7 @@ static class Store
 
             var identity = file.Attributes["InstallerSpecificIdentifier"].InnerText.Split('_');
             var neutral = identity[2] == "neutral";
-            if (!neutral && identity[2] != architectures.OS.Native && identity[2] != architectures.OS.Compatible) continue;
+            if (!neutral && identity[2] != architectures.Native.String && identity[2] != architectures.Compatible.String) continue;
             architecture = (neutral ? product.Architecture : identity[2]) switch
             {
                 "x86" => ProcessorArchitecture.X86,
@@ -149,7 +155,10 @@ static class Store
         }
 
         var values = dictionary.Where(item => item.Value.MainPackage).Select(item => item.Value);
-        architecture = (values.FirstOrDefault(value => value.Architecture == architectures.Processor.Native) ?? values.FirstOrDefault(value => value.Architecture == architectures.Processor.Compatible)).Architecture;
+        architecture = (
+            values.FirstOrDefault(value => value.Architecture == architectures.Native.Architecture)
+            ?? values.FirstOrDefault(value => value.Architecture == architectures.Compatible.Architecture)
+            ).Architecture;
         var items = dictionary.Select(item => item.Value).Where(item => item.Architecture == architecture);
 
         List<UpdateIdentity> updates = [];
@@ -182,17 +191,19 @@ static class Store
 
     static XmlElement Deserialize(string input)
     {
-        using var reader = JsonReaderWriterFactory.CreateJsonReader(Encoding.UTF8.GetBytes(input), XmlDictionaryReaderQuotas.Max);
+        using var reader = JsonReaderWriterFactory.CreateJsonReader(Encoding.Unicode.GetBytes(input), XmlDictionaryReaderQuotas.Max);
         XmlDocument document = new();
         document.Load(reader);
         return document["root"];
     }
 
-    static XmlDocument UploadString(string data, bool secured = false)
+    static XmlDocument UploadString(string data, bool? _ = null)
     {
         client.Headers["Content-Type"] = "application/soap+xml";
+        var value = client.UploadString(_.HasValue && _.Value ? "secured" : string.Empty, data);
+
         XmlDocument document = new();
-        document.LoadXml(client.UploadString(secured ? "secured" : string.Empty, data).Replace("&lt;", "<").Replace("&gt;", ">"));
+        document.LoadXml(_.HasValue && !_.Value ? WebUtility.HtmlDecode(value) : value);
         return document;
     }
 }
