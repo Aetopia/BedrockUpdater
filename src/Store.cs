@@ -52,7 +52,7 @@ static class Store
 
     static readonly string address = $"https://storeedgefd.dsx.mp.microsoft.com/v9.0/products/{{0}}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop";
 
-    static readonly WebClient client = new() { BaseAddress = "https://fe3.delivery.mp.microsoft.com/ClientWebService/client.asmx/" };
+    static readonly WebClient client = new() { BaseAddress = "https://fe3cr.delivery.mp.microsoft.com/ClientWebService/client.asmx/" };
 
     static readonly (
         (string String, ProcessorArchitecture Architecture) Native,
@@ -154,6 +154,7 @@ static class Store
             }
         }
 
+        if (dictionary.Count == 0) return [];
         var values = dictionary.Where(item => item.Value.MainPackage).Select(item => item.Value);
         architecture = (
             values.FirstOrDefault(value => value.Architecture == architectures.Native.Architecture)
