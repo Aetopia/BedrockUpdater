@@ -52,7 +52,11 @@ static class Store
 
     static readonly string address = $"https://storeedgefd.dsx.mp.microsoft.com/v9.0/products/{{0}}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop";
 
-    static readonly WebClient client = new() { BaseAddress = "https://fe3cr.delivery.mp.microsoft.com/ClientWebService/client.asmx/" };
+    static readonly WebClient client = new()
+    {
+        BaseAddress = "https://fe3cr.delivery.mp.microsoft.com/ClientWebService/client.asmx/",
+        Encoding = Encoding.UTF8
+    };
 
     static readonly (
         (string String, ProcessorArchitecture Architecture) Native,
@@ -86,16 +90,16 @@ static class Store
 
         for (int i = 0; i < productIds.Length; i++)
         {
-            var payload = Deserialize(client.DownloadString(string.Format(address, productIds[i])))["Payload"];
+            var payload = Deserialize(client.DownloadData(string.Format(address, productIds[i])))["Payload"];
             var title = payload?["ShortTitle"]?.InnerText;
-            var enumerable = payload["Platforms"].Cast<XmlNode>().Select(node => node.InnerText);
+            var platforms = payload["Platforms"].Cast<XmlNode>().Select(node => node.InnerText);
 
             products[i] = new()
             {
                 Title = string.IsNullOrEmpty(title) ? payload["Title"].InnerText : title,
-                AppCategoryId = Deserialize(payload.GetElementsByTagName("FulfillmentData")[0].InnerText)["WuCategoryId"].InnerText,
-                Architecture = (enumerable.FirstOrDefault(item => item.Equals(architectures.Native.String, StringComparison.OrdinalIgnoreCase)) ??
-                enumerable.FirstOrDefault(item => item.Equals(architectures.Compatible.String, StringComparison.OrdinalIgnoreCase)))?.ToLowerInvariant()
+                AppCategoryId = Deserialize(Encoding.Unicode.GetBytes(payload.GetElementsByTagName("FulfillmentData")[0].InnerText))["WuCategoryId"].InnerText,
+                Architecture = (platforms.FirstOrDefault(item => item.Equals(architectures.Native.String, StringComparison.OrdinalIgnoreCase)) ??
+                platforms.FirstOrDefault(item => item.Equals(architectures.Compatible.String, StringComparison.OrdinalIgnoreCase)))?.ToLowerInvariant()
             };
         }
 
@@ -117,9 +121,12 @@ static class Store
                 product.AppCategoryId), false)
             .GetElementsByTagName("SyncUpdatesResult")[0];
 
+        var nodes = result.GetElementsByTagName("AppxPackageInstallData");
+        if (nodes.Count == 0) return [];
+
         ProcessorArchitecture architecture;
         Dictionary<string, Update> dictionary = [];
-        foreach (XmlNode node in result.GetElementsByTagName("AppxPackageInstallData"))
+        foreach (XmlNode node in nodes)
         {
             var element = (XmlElement)node.ParentNode.ParentNode.ParentNode;
             var file = element.GetElementsByTagName("File")[0];
@@ -154,7 +161,6 @@ static class Store
             }
         }
 
-        if (dictionary.Count == 0) return [];
         var values = dictionary.Where(item => item.Value.MainPackage).Select(item => item.Value);
         architecture = (
             values.FirstOrDefault(value => value.Architecture == architectures.Native.Architecture)
@@ -190,9 +196,9 @@ static class Store
         return updates;
     }
 
-    static XmlElement Deserialize(string input)
+    static XmlElement Deserialize(byte[] buffer)
     {
-        using var reader = JsonReaderWriterFactory.CreateJsonReader(Encoding.Unicode.GetBytes(input), XmlDictionaryReaderQuotas.Max);
+        using var reader = JsonReaderWriterFactory.CreateJsonReader(buffer, XmlDictionaryReaderQuotas.Max);
         XmlDocument document = new();
         document.Load(reader);
         return document["root"];
