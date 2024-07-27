@@ -140,12 +140,12 @@ class MainWindow : Window
 
                     try
                     {
-                        client.DownloadFileTaskAsync(Store.GetUrl(list[i]), (packageUri = new(Path.GetTempFileName())).AbsolutePath).Wait();
+                        client.DownloadFileTaskAsync(Store.GetUrl(list[i]), (packageUri = new(Path.GetTempFileName())).LocalPath).Wait();
                         operation = Store.PackageManager.AddPackageAsync(packageUri, null, DeploymentOptions.ForceApplicationShutdown);
                         operation.Progress += (sender, e) => Dispatcher.Invoke(() => { if (progressBar.Value != e.percentage) progressBar.Value = e.percentage; });
                         operation.AsTask().Wait();
                     }
-                    finally { NativeMethods.DeleteFile(packageUri.AbsolutePath); }
+                    finally { NativeMethods.DeleteFile(packageUri.LocalPath); }
                 }
             }
 
