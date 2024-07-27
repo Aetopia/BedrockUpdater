@@ -129,18 +129,18 @@ class MainWindow : Window
                 var list = Store.GetUpdates(product);
 
                 if (list.Count != 0) Dispatcher.Invoke(() => progressBar.IsIndeterminate = false);
-                for (int i = 0; i < list.Count; i++)
+                for (int index = 0; index < list.Count; index++)
                 {
                     Dispatcher.Invoke(() =>
                     {
                         textBlock1.Text = "Downloading...";
-                        textBlock2.Text = list.Count != 1 ? $"{i + 1} / {list.Count}" : null;
+                        textBlock2.Text = list.Count != 1 ? $"{index + 1} / {list.Count}" : null;
                         progressBar.Value = 0;
                     });
 
                     try
                     {
-                        client.DownloadFileTaskAsync(Store.GetUrl(list[i]), (packageUri = new(Path.GetTempFileName())).LocalPath).Wait();
+                        client.DownloadFileTaskAsync(Store.GetUrl(list[index]), (packageUri = new(Path.GetTempFileName())).LocalPath).Wait();
                         operation = Store.PackageManager.AddPackageAsync(packageUri, null, DeploymentOptions.ForceApplicationShutdown);
                         operation.Progress += (sender, e) => Dispatcher.Invoke(() => { if (progressBar.Value != e.percentage) progressBar.Value = e.percentage; });
                         operation.AsTask().Wait();

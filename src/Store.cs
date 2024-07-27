@@ -88,13 +88,13 @@ static class Store
     {
         var products = new Product[productIds.Length];
 
-        for (int i = 0; i < productIds.Length; i++)
+        for (int index = 0; index < productIds.Length; index++)
         {
-            var payload = Deserialize(client.DownloadData(string.Format(address, productIds[i])))["Payload"];
+            var payload = Deserialize(client.DownloadData(string.Format(address, productIds[index])))["Payload"];
             var title = payload?["ShortTitle"]?.InnerText;
             var platforms = payload["Platforms"].Cast<XmlNode>().Select(node => node.InnerText);
 
-            products[i] = new()
+            products[index] = new()
             {
                 Title = string.IsNullOrEmpty(title) ? payload["Title"].InnerText : title,
                 AppCategoryId = Deserialize(Encoding.Unicode.GetBytes(payload.GetElementsByTagName("FulfillmentData")[0].InnerText))["WuCategoryId"].InnerText,
@@ -128,6 +128,7 @@ static class Store
 
         ProcessorArchitecture architecture;
         Dictionary<string, Update> dictionary = [];
+
         foreach (XmlNode node in nodes)
         {
             var element = (XmlElement)node.ParentNode.ParentNode.ParentNode;
