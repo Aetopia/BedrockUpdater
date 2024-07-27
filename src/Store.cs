@@ -98,8 +98,10 @@ static class Store
             {
                 Title = string.IsNullOrEmpty(title) ? payload["Title"].InnerText : title,
                 AppCategoryId = Deserialize(Encoding.Unicode.GetBytes(payload.GetElementsByTagName("FulfillmentData")[0].InnerText))["WuCategoryId"].InnerText,
-                Architecture = (platforms.FirstOrDefault(item => item.Equals(architectures.Native.String, StringComparison.OrdinalIgnoreCase)) ??
-                platforms.FirstOrDefault(item => item.Equals(architectures.Compatible.String, StringComparison.OrdinalIgnoreCase)))?.ToLowerInvariant()
+                Architecture = (
+                    platforms.FirstOrDefault(item => item.Equals(architectures.Native.String, StringComparison.OrdinalIgnoreCase)) ??
+                    platforms.FirstOrDefault(item => item.Equals(architectures.Compatible.String, StringComparison.OrdinalIgnoreCase))
+                )?.ToLowerInvariant()
             };
         }
 
@@ -163,12 +165,12 @@ static class Store
 
         var values = dictionary.Where(item => item.Value.MainPackage).Select(item => item.Value);
         architecture = (
-            values.FirstOrDefault(value => value.Architecture == architectures.Native.Architecture)
-            ?? values.FirstOrDefault(value => value.Architecture == architectures.Compatible.Architecture)
-            ).Architecture;
+            values.FirstOrDefault(value => value.Architecture == architectures.Native.Architecture) ??
+            values.FirstOrDefault(value => value.Architecture == architectures.Compatible.Architecture)
+        ).Architecture;
         var items = dictionary.Select(item => item.Value).Where(item => item.Architecture == architecture);
 
-        List<UpdateIdentity> updates = [];
+        List<UpdateIdentity> list = [];
 
         foreach (XmlNode node in result.GetElementsByTagName("SecuredFragment"))
         {
@@ -182,7 +184,7 @@ static class Store
                 new Version(item.Version) > new Version(package.Id.Version.Major, package.Id.Version.Minor, package.Id.Version.Build, package.Id.Version.Revision)))
             {
                 var attributes = element.GetElementsByTagName("UpdateIdentity")[0].Attributes;
-                updates.Add(new()
+                list.Add(new()
                 {
                     UpdateID = attributes["UpdateID"].InnerText,
                     RevisionNumber = attributes["RevisionNumber"].InnerText,
@@ -192,8 +194,8 @@ static class Store
             else if (item.MainPackage) return [];
         }
 
-        updates.Sort((x, y) => x.MainPackage ? 1 : -1);
-        return updates;
+        list.Sort((x, y) => x.MainPackage ? 1 : -1);
+        return list;
     }
 
     static XmlElement Deserialize(byte[] buffer)

@@ -126,21 +126,21 @@ class MainWindow : Window
                     textBlock1.Text = $"Preparing {product.Title}...";
                     textBlock2.Text = default;
                 });
-                var updates = Store.GetUpdates(product);
+                var list = Store.GetUpdates(product);
 
-                if (updates.Count != 0) Dispatcher.Invoke(() => progressBar.IsIndeterminate = false);
-                for (int i = 0; i < updates.Count; i++)
+                if (list.Count != 0) Dispatcher.Invoke(() => progressBar.IsIndeterminate = false);
+                for (int i = 0; i < list.Count; i++)
                 {
                     Dispatcher.Invoke(() =>
                     {
                         textBlock1.Text = "Downloading...";
-                        textBlock2.Text = updates.Count != 1 ? $"{i + 1} / {updates.Count}" : null;
+                        textBlock2.Text = list.Count != 1 ? $"{i + 1} / {list.Count}" : null;
                         progressBar.Value = 0;
                     });
 
                     try
                     {
-                        client.DownloadFileTaskAsync(Store.GetUrl(updates[i]), (packageUri = new(Path.GetTempFileName())).AbsolutePath).Wait();
+                        client.DownloadFileTaskAsync(Store.GetUrl(list[i]), (packageUri = new(Path.GetTempFileName())).AbsolutePath).Wait();
                         operation = Store.PackageManager.AddPackageAsync(packageUri, null, DeploymentOptions.ForceApplicationShutdown);
                         operation.Progress += (sender, e) => Dispatcher.Invoke(() => { if (progressBar.Value != e.percentage) progressBar.Value = e.percentage; });
                         operation.AsTask().Wait();
