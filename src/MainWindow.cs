@@ -11,12 +11,12 @@ using System.Windows.Forms.Integration;
 
 class MainWindow : Window
 {
-    enum Units { B, KB, MB, GB }
+    enum Unit { B, KB, MB, GB }
 
     static string Format(float value)
     {
         var unit = (int)Math.Log(value, 1024);
-        return $"{value / Math.Pow(1024, unit):0.00} {(Units)unit}";
+        return $"{value / Math.Pow(1024, unit):0.00} {(Unit)unit}";
     }
 
     internal MainWindow(bool preview)
