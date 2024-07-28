@@ -4,7 +4,6 @@ using System.Net;
 using System.Windows;
 using Windows.Foundation;
 using System.Windows.Media;
-using System.Threading.Tasks;
 using System.Windows.Controls;
 using Windows.Management.Deployment;
 using System.Windows.Forms.Integration;
@@ -12,12 +11,6 @@ using System.Windows.Forms.Integration;
 class MainWindow : Window
 {
     enum Unit { B, KB, MB, GB }
-
-    static string Format(float value)
-    {
-        var unit = (int)Math.Log(value, 1024);
-        return $"{value / Math.Pow(1024, unit):0.00} {(Unit)unit}";
-    }
 
     internal MainWindow(bool preview)
     {
@@ -85,22 +78,19 @@ class MainWindow : Window
 
         client.DownloadProgressChanged += (sender, e) =>
         {
-            var text = $"Downloading {Format(e.BytesReceived)} / {value ??= Format(e.TotalBytesToReceive)}";
-            Dispatcher.Invoke(() =>
+            static string _(float _) { var unit = (int)Math.Log(_, 1024); return $"{_ / Math.Pow(1024, unit):0.00} {(Unit)unit}"; }
+            if (progressBar.Value != e.ProgressPercentage)
             {
-                textBlock1.Text = text;
-                if (progressBar.Value != e.ProgressPercentage) progressBar.Value = e.ProgressPercentage;
-            });
+                textBlock1.Text = $"Downloading {_(e.BytesReceived)} / {value ??= _(e.TotalBytesToReceive)}";
+                progressBar.Value = e.ProgressPercentage;
+            }
         };
 
         client.DownloadFileCompleted += (sender, e) =>
         {
             value = default;
-            Dispatcher.Invoke(() =>
-            {
-                progressBar.Value = 0;
-                textBlock1.Text = "Installing...";
-            });
+            progressBar.Value = 0;
+            textBlock1.Text = "Installing...";
         };
 
         Uri packageUri = default;
@@ -116,41 +106,36 @@ class MainWindow : Window
                 _ = Store.PackageManager.RemovePackageAsync(package.Id.FullName);
         };
 
-        ContentRendered += async (sender, e) => await Task.Run(() =>
+        ContentRendered += async (sender, e) =>
         {
-            foreach (var product in Store.GetProducts("9WZDNCRD1HKW", preview ? "9P5X4QVLC2XR" : "9NBLGGH2JHXJ"))
+            foreach (var product in await Store.GetProductsAsync("9WZDNCRD1HKW", preview ? "9P5X4QVLC2XR" : "9NBLGGH2JHXJ"))
             {
-                Dispatcher.Invoke(() =>
-                {
-                    progressBar.IsIndeterminate = true;
-                    textBlock1.Text = $"Preparing {product.Title}...";
-                    textBlock2.Text = default;
-                });
-                var list = Store.GetUpdates(product);
+                progressBar.IsIndeterminate = true;
+                textBlock1.Text = $"Preparing {product.Title}...";
+                textBlock2.Text = default;
 
-                if (list.Count != 0) Dispatcher.Invoke(() => progressBar.IsIndeterminate = false);
+                var list = await Store.GetUpdates(product);
+
+                if (list.Count != 0) progressBar.IsIndeterminate = false;
                 for (int index = 0; index < list.Count; index++)
                 {
-                    Dispatcher.Invoke(() =>
-                    {
-                        textBlock1.Text = "Downloading...";
-                        textBlock2.Text = list.Count != 1 ? $"{index + 1} / {list.Count}" : null;
-                        progressBar.Value = 0;
-                    });
+                    textBlock1.Text = "Downloading...";
+                    textBlock2.Text = list.Count != 1 ? $"{index + 1} / {list.Count}" : null;
+                    progressBar.Value = 0;
 
                     try
                     {
-                        client.DownloadFileTaskAsync(Store.GetUrl(list[index]), (packageUri = new(Path.GetTempFileName())).LocalPath).Wait();
+                        await client.DownloadFileTaskAsync(await Store.GetUrl(list[index]), (packageUri = new(Path.GetTempFileName())).LocalPath);
                         operation = Store.PackageManager.AddPackageAsync(packageUri, null, DeploymentOptions.ForceApplicationShutdown);
                         operation.Progress += (sender, e) => Dispatcher.Invoke(() => { if (progressBar.Value != e.percentage) progressBar.Value = e.percentage; });
-                        operation.AsTask().Wait();
+                        await operation;
                     }
                     finally { NativeMethods.DeleteFile(packageUri.LocalPath); }
                 }
             }
 
             NativeMethods.ShellExecute(lpFile: @$"shell:AppsFolder\Microsoft.Minecraft{(preview ? "WindowsBeta" : "UWP")}_8wekyb3d8bbwe!App");
-            Dispatcher.Invoke(Close);
-        });
+            Close();
+        };
     }
 }

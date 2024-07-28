@@ -5,11 +5,14 @@ using System.Xml;
 using System.Linq;
 using System.Text;
 using Windows.System;
+using System.Threading;
+using System.Threading.Tasks;
 using Windows.System.UserProfile;
 using System.Collections.Generic;
 using Windows.Management.Deployment;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Json;
+using System.Runtime.CompilerServices;
 
 struct Product
 {
@@ -29,7 +32,7 @@ struct UpdateIdentity
     internal bool MainPackage;
 }
 
-class Update
+file class Update
 {
     internal string ID;
 
@@ -42,6 +45,22 @@ class Update
     internal string Version;
 
     internal bool MainPackage;
+}
+
+file readonly struct _ : INotifyCompletion
+{
+    internal readonly bool IsCompleted => SynchronizationContext.Current == null;
+
+    internal readonly void GetResult() { }
+
+    internal readonly _ GetAwaiter() { return this; }
+
+    public readonly void OnCompleted(Action _)
+    {
+        var syncContext = SynchronizationContext.Current;
+        try { SynchronizationContext.SetSynchronizationContext(null); _(); }
+        finally { SynchronizationContext.SetSynchronizationContext(syncContext); }
+    }
 }
 
 static class Store
@@ -84,13 +103,15 @@ static class Store
         )
     );
 
-    internal static Product[] GetProducts(params string[] productIds)
+    internal static async Task<Product[]> GetProductsAsync(params string[] productIds)
     {
+        await default(_);
+
         var products = new Product[productIds.Length];
 
         for (int index = 0; index < productIds.Length; index++)
         {
-            var payload = Deserialize(client.DownloadData(string.Format(address, productIds[index])))["Payload"];
+            var payload = Deserialize(await client.DownloadDataTaskAsync(string.Format(address, productIds[index])))["Payload"];
             var title = payload?["ShortTitle"]?.InnerText;
             var platforms = payload["Platforms"].Cast<XmlNode>().Select(node => node.InnerText);
 
@@ -108,20 +129,25 @@ static class Store
         return products;
     }
 
-    internal static string GetUrl(UpdateIdentity update) =>
-    UploadString(string.Format(Resources.GetExtendedUpdateInfo2, update.UpdateID, update.RevisionNumber), true)
-    .GetElementsByTagName("Url")
-    .Cast<XmlNode>()
-    .First(node => node.InnerText.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).InnerText;
-
-    internal static List<UpdateIdentity> GetUpdates(Product product)
+    internal static async Task<string> GetUrl(UpdateIdentity update)
     {
+        await default(_);
+
+        return (await UploadStringAsync(string.Format(Resources.GetExtendedUpdateInfo2, update.UpdateID, update.RevisionNumber), true))
+        .GetElementsByTagName("Url")
+        .Cast<XmlNode>()
+        .First(node => node.InnerText.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).InnerText;
+    }
+
+    internal static async Task<List<UpdateIdentity>> GetUpdates(Product product)
+    {
+        await default(_);
+
         if (product.Architecture is null) return [];
-        var result = (XmlElement)UploadString(
-            string.Format(
-                data ??= string.Format(Resources.GetString("SyncUpdates.xml.gz"), UploadString(Resources.GetString("GetCookie.xml.gz")).GetElementsByTagName("EncryptedData")[0].InnerText, "{0}"),
-                product.AppCategoryId), false)
-            .GetElementsByTagName("SyncUpdatesResult")[0];
+
+        var result = (XmlElement)(await UploadStringAsync(string.Format(
+            data ??= string.Format(Resources.GetString("SyncUpdates.xml.gz"),
+            (await UploadStringAsync(Resources.GetString("GetCookie.xml.gz"))).GetElementsByTagName("EncryptedData")[0].InnerText, "{0}"), product.AppCategoryId), false)).GetElementsByTagName("SyncUpdatesResult")[0];
 
         var nodes = result.GetElementsByTagName("AppxPackageInstallData");
         if (nodes.Count == 0) return [];
@@ -207,10 +233,10 @@ static class Store
         return document["root"];
     }
 
-    static XmlDocument UploadString(string data, bool? _ = null)
+    static async Task<XmlDocument> UploadStringAsync(string data, bool? _ = null)
     {
         client.Headers["Content-Type"] = "application/soap+xml";
-        var value = client.UploadString(_.HasValue && _.Value ? "secured" : string.Empty, data);
+        var value = await client.UploadStringTaskAsync(_.HasValue && _.Value ? "secured" : string.Empty, data);
 
         XmlDocument document = new();
         document.LoadXml(_.HasValue && !_.Value ? WebUtility.HtmlDecode(value) : value);
