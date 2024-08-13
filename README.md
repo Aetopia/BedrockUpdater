@@ -50,9 +50,8 @@ scoop install bedrockupdater
 ```
 
 ### Minecraft: Bedrock Edition
-#### Uninstall
-
 Run the following script in PowerShell to uninstall Minecraft: Bedrock Edition & Xbox Identity Provider.
+
 ```powershell
 $ProgressPreference = $ErrorActionPreference = "SilentlyContinue"
 
