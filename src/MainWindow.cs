@@ -16,7 +16,7 @@ class MainWindow : Window
     {
         UseLayoutRounding = true;
         Icon = global::Resources.GetImageSource(".ico");
-        Title = $"Bedrock Updater ({(preview ? "Minecraft Preview" : "Minecraft")})";
+        Title = $"Bedrock Updater - {(preview ? "Minecraft Preview" : "Minecraft")}";
         Background = new SolidColorBrush(Color.FromRgb(30, 30, 30));
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         ResizeMode = ResizeMode.NoResize;
