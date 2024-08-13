@@ -40,7 +40,7 @@ Download, update & install Minecraft: Bedrock Edition without the Microsoft Stor
 
 ## Installation
 #### Manual
-Download the latest release from [Github Releases](https://github.com/Aetopia/BedrockUpdater/releases/latest)
+Download the latest release from [GitHub Releases](https://github.com/Aetopia/BedrockUpdater/releases/latest).
 
 ### [Scoop](https://scoop.sh/)
 #### Install
