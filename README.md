@@ -39,7 +39,7 @@ Download, update & install Minecraft: Bedrock Edition without the Microsoft Stor
 > If you have downloaded Bedrock Updater manually, pass `/Preview` to the executable for Minecraft Preview.
 
 ## Installation
-#### Manual
+### Manual
 Download the latest release from [GitHub Releases](https://github.com/Aetopia/BedrockUpdater/releases/latest).
 
 ### [Scoop](https://scoop.sh/)
