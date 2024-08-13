@@ -39,67 +39,15 @@ Download, update & install Minecraft: Bedrock Edition without the Microsoft Stor
 > If you have downloaded Bedrock Updater manually, pass `/Preview` to the executable for Minecraft Preview.
 
 ## Installation
+#### Manual
+Download the latest release from [Github Releases](https://github.com/Aetopia/BedrockUpdater/releases/latest)
+
 ### [Scoop](https://scoop.sh/)
 #### Install
 ```
 scoop bucket add games
 scoop install bedrockupdater
 ```
-#### Uninstall
-```
-scoop uninstall bedrockupdater
-```
-
-### Script 
-#### Install
-
-Run the following script in PowerShell to install Bedrock Updater.
-
-```powershell
-$ProgressPreference = "SilentlyContinue"
-
-$Path = "$([System.Environment]::GetFolderPath("LocalApplicationData"))\Microsoft\WindowsApps"
-New-Item -Type Directory -Path $Path -ErrorAction "SilentlyContinue"
-Invoke-RestMethod "https://github.com/Aetopia/BedrockUpdater/releases/latest/download/BedrockUpdater.exe" -OutFile "$Path\BedrockUpdater.exe"
-
-$Programs = [System.Environment]::GetFolderPath("Programs")
-$WshShell = New-Object -ComObject "WScript.Shell"
-
-$Shortcut = $WshShell.CreateShortcut("$Programs\Bedrock Updater.lnk")
-$Shortcut.TargetPath =  "$Path\BedrockUpdater.exe"
-$Shortcut.Description = "Keeps Minecraft up to date."
-$Shortcut.Save()
-
-$Shortcut = $WshShell.CreateShortcut("$Programs\Bedrock Updater Preview.lnk")
-$Shortcut.TargetPath =  "$Path\BedrockUpdater.exe"
-$Shortcut.Arguments = "/Preview"
-$Shortcut.Description = "Keeps Minecraft Preview up to date."
-$Shortcut.Save()
-
-$ProgressPreference = "Continue"
-```
-
-#### Uninstall
-Run the following script in PowerShell to uninstall Bedrock Updater.
-
-```powershell
-$ErrorActionPreference = "SilentlyContinue"
-
-Remove-Item -Path "$([System.Environment]::GetFolderPath("LocalApplicationData"))\Microsoft\WindowsApps\BedrockUpdater.exe"
-$Programs = [System.Environment]::GetFolderPath("Programs")
-Remove-Item -Path "$Programs\Bedrock Updater.lnk"
-Remove-Item -Path "$Programs\Bedrock Updater Preview.lnk"
-
-$ErrorActionPreference = "Continue"
-```
-
-> [!NOTE]
-> - Bedrock Updater's executable is placed in:
->
->   - `%LOCALAPPDATA%\Microsoft\WindowsApps`
-> - Bedrock Updater's Windows Start Menu shortcuts are placed in:
->
->   - `%APPDATA%\Microsoft\Windows\Start Menu\Programs`
 
 ### Minecraft: Bedrock Edition
 #### Uninstall
