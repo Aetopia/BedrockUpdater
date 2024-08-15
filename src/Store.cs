@@ -7,6 +7,7 @@ using System.Text;
 using Windows.System;
 using System.Threading;
 using System.Threading.Tasks;
+using Windows.ApplicationModel;
 using Windows.System.UserProfile;
 using System.Collections.Generic;
 using Windows.Management.Deployment;
@@ -205,9 +206,8 @@ static class Store
             var item = items.FirstOrDefault(item => item.ID == element["ID"].InnerText);
             if (item is null) continue;
 
-            var packages = PackageManager.FindPackagesForUser(string.Empty, item.PackageFamilyName);
-            var package = item.MainPackage ? packages.SingleOrDefault() : packages.FirstOrDefault(package => package.Id.Architecture == item.Architecture);
-            if (package is null || (!package.IsDevelopmentMode &&
+            var package = PackageManager.FindPackagesForUser(string.Empty, item.PackageFamilyName).FirstOrDefault(package => package.Id.Architecture == item.Architecture || item.MainPackage);
+            if (package is null || (package.SignatureKind == PackageSignatureKind.Store &&
                 new Version(item.Version) > new Version(package.Id.Version.Major, package.Id.Version.Minor, package.Id.Version.Build, package.Id.Version.Revision)))
             {
                 var attributes = element.GetElementsByTagName("UpdateIdentity")[0].Attributes;
