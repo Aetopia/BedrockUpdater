@@ -118,14 +118,14 @@ static class Store
                 $"https://storeedgefd.dsx.mp.microsoft.com/v9.0/products/{_[index]}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop"))
                 .Element("Payload");
             var title = payload.Element("ShortTitle")?.Value;
-            var platforms = payload.Element("Platforms").Descendants().Select(node => node.Value);
+            var platforms = payload.Element("Platforms").Descendants().Select(_ => _.Value);
 
             products[index] = new()
             {
                 Title = string.IsNullOrEmpty(title) ? payload.Element("Title").Value : title,
                 Architecture = (
-                    platforms.FirstOrDefault(item => item.Equals(architectures.Native.String, StringComparison.OrdinalIgnoreCase)) ??
-                    platforms.FirstOrDefault(item => item.Equals(architectures.Compatible.String, StringComparison.OrdinalIgnoreCase))
+                    platforms.FirstOrDefault(_ => _.Equals(architectures.Native.String, StringComparison.OrdinalIgnoreCase)) ??
+                    platforms.FirstOrDefault(_ => _.Equals(architectures.Compatible.String, StringComparison.OrdinalIgnoreCase))
                 )?.ToLowerInvariant(),
                 AppCategoryId = Deserialize(Encoding.Unicode.GetBytes(payload.Descendants("FulfillmentData").First().Value)).Element("WuCategoryId").Value,
                 ProductId = _[index],
@@ -140,7 +140,7 @@ static class Store
 
         return (await PostAsync(string.Format(Resources.GetExtendedUpdateInfo2, update.UpdateId, update.RevisionNumber), true))
         .Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}Url")
-        .First(node => node.Value.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).Value;
+        .First(_ => _.Value.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).Value;
     }
 
     internal static async Task<List<UpdateIdentity>> GetUpdates(Product product)
