@@ -12,41 +12,14 @@ using Windows.System.UserProfile;
 using System.Collections.Generic;
 using Windows.Management.Deployment;
 using System.Runtime.InteropServices;
-using System.Runtime.Serialization.Json;
 using System.Runtime.CompilerServices;
+using System.Runtime.Serialization.Json;
 
-struct Product
-{
-    internal string Title;
+struct Product { internal string Title; internal string AppCategoryId; internal string Architecture; }
 
-    internal string AppCategoryId;
+struct UpdateIdentity { internal string UpdateID; internal string RevisionNumber; internal bool MainPackage; }
 
-    internal string Architecture;
-}
-
-struct UpdateIdentity
-{
-    internal string UpdateID;
-
-    internal string RevisionNumber;
-
-    internal bool MainPackage;
-}
-
-file class Update
-{
-    internal string ID;
-
-    internal DateTime Modified;
-
-    internal ProcessorArchitecture Architecture;
-
-    internal string PackageFamilyName;
-
-    internal string Version;
-
-    internal bool MainPackage;
-}
+file class Update { internal string ID; internal DateTime Modified; internal ProcessorArchitecture Architecture; internal string PackageFamilyName; internal string Version; internal bool MainPackage; }
 
 file readonly struct _ : INotifyCompletion
 {
@@ -66,7 +39,7 @@ file readonly struct _ : INotifyCompletion
 
 static class Store
 {
-    static string data;
+    static string _;
 
     internal static readonly PackageManager PackageManager = new();
 
@@ -147,7 +120,7 @@ static class Store
         if (product.Architecture is null) return [];
 
         var result = (XmlElement)(await UploadStringAsync(string.Format(
-            data ??= string.Format(Resources.GetString("SyncUpdates.xml.gz"),
+            _ ??= string.Format(Resources.GetString("SyncUpdates.xml.gz"),
             (await UploadStringAsync(Resources.GetString("GetCookie.xml.gz"))).GetElementsByTagName("EncryptedData")[0].InnerText, "{0}"), product.AppCategoryId), false)).GetElementsByTagName("SyncUpdatesResult")[0];
 
         var nodes = result.GetElementsByTagName("AppxPackageInstallData");

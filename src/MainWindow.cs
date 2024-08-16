@@ -6,10 +6,14 @@ using Windows.Foundation;
 using System.Windows.Media;
 using System.Windows.Controls;
 using Windows.Management.Deployment;
+using System.Runtime.InteropServices;
 using System.Windows.Forms.Integration;
 
 class MainWindow : Window
 {
+    [DllImport("Kernel32", CharSet = CharSet.Auto, SetLastError = true), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static extern bool DeleteFile(string lpFileName);
+
     enum Unit { B, KB, MB, GB }
 
     internal MainWindow(bool preview)
@@ -101,7 +105,7 @@ class MainWindow : Window
             client.CancelAsync();
             while (client.IsBusy) ;
             operation?.Cancel();
-            NativeMethods.DeleteFile(packageUri?.AbsolutePath);
+            DeleteFile(packageUri?.AbsolutePath);
             foreach (var package in Store.PackageManager.FindPackagesForUserWithPackageTypes(string.Empty, PackageTypes.Framework))
                 _ = Store.PackageManager.RemovePackageAsync(package.Id.FullName);
         };
@@ -115,7 +119,6 @@ class MainWindow : Window
                 textBlock2.Text = default;
 
                 var list = await Store.GetUpdates(product);
-
                 if (list.Count != 0) progressBar.IsIndeterminate = false;
                 for (int index = 0; index < list.Count; index++)
                 {
@@ -130,11 +133,9 @@ class MainWindow : Window
                         operation.Progress += (sender, e) => Dispatcher.Invoke(() => { if (progressBar.Value != e.percentage) progressBar.Value = e.percentage; });
                         await operation;
                     }
-                    finally { NativeMethods.DeleteFile(packageUri.LocalPath); }
+                    finally { DeleteFile(packageUri.LocalPath); }
                 }
             }
-
-            NativeMethods.ShellExecute(lpFile: @$"shell:AppsFolder\Microsoft.Minecraft{(preview ? "WindowsBeta" : "UWP")}_8wekyb3d8bbwe!App");
             Close();
         };
     }
