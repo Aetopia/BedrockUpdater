@@ -243,13 +243,13 @@ static class Store
     static XElement Deserialize(byte[] buffer)
     {
         using var _ = JsonReaderWriterFactory.CreateJsonReader(buffer, System.Xml.XmlDictionaryReaderQuotas.Max);
-        return XDocument.Load(_).Element("root");
+        return XElement.Load(_).Element("root");
     }
 
-    static async Task<XDocument> PostAsync(string data, bool? _ = null)
+    static async Task<XElement> PostAsync(string data, bool? _ = null)
     {
         client.Headers["Content-Type"] = "application/soap+xml";
         var value = await client.UploadStringTaskAsync(_.HasValue && _.Value ? "secured" : string.Empty, data);
-        return XDocument.Parse(_.HasValue && !_.Value ? WebUtility.HtmlDecode(value) : value);
+        return XElement.Parse(_.HasValue && !_.Value ? WebUtility.HtmlDecode(value) : value);
     }
 }
