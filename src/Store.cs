@@ -243,7 +243,7 @@ static class Store
     static XElement Deserialize(byte[] buffer)
     {
         using var _ = JsonReaderWriterFactory.CreateJsonReader(buffer, System.Xml.XmlDictionaryReaderQuotas.Max);
-        return XElement.Load(_).Element("root");
+        return XElement.Load(_);
     }
 
     static async Task<XElement> PostAsync(string data, bool? _ = null)
