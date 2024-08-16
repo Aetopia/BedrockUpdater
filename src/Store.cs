@@ -1,11 +1,11 @@
 using System;
 using System.IO;
 using System.Net;
-using System.Xml;
 using System.Linq;
 using System.Text;
 using Windows.System;
 using System.Threading;
+using System.Xml.Linq;
 using System.Threading.Tasks;
 using Windows.ApplicationModel;
 using Windows.System.UserProfile;
@@ -15,11 +15,42 @@ using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization.Json;
 
-struct Product { internal string Title; internal string AppCategoryId; internal string Architecture; }
+struct Product
+{
+    internal string Title;
 
-struct UpdateIdentity { internal string UpdateID; internal string RevisionNumber; internal bool MainPackage; }
+    internal string Architecture;
 
-file class Update { internal string ID; internal DateTime Modified; internal ProcessorArchitecture Architecture; internal string PackageFamilyName; internal string Version; internal bool MainPackage; }
+    internal string ProductId;
+
+    internal string AppCategoryId;
+}
+
+struct UpdateIdentity
+{
+    internal string UpdateId;
+
+    internal string RevisionNumber;
+
+    internal bool MainPackage;
+}
+
+file class Update
+{
+    internal string Id;
+
+    internal DateTime Modified;
+
+    internal ProcessorArchitecture Architecture;
+
+    internal string PackageFullName;
+
+    internal string[] PackageIdentity;
+
+    internal string Version;
+
+    internal bool MainPackage;
+}
 
 file readonly struct _ : INotifyCompletion
 {
@@ -42,8 +73,6 @@ static class Store
     static string _;
 
     internal static readonly PackageManager PackageManager = new();
-
-    static readonly string address = $"https://storeedgefd.dsx.mp.microsoft.com/v9.0/products/{{0}}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop";
 
     static readonly WebClient client = new()
     {
@@ -77,29 +106,31 @@ static class Store
         )
     );
 
-    internal static async Task<Product[]> GetProductsAsync(params string[] productIds)
+    internal static async Task<Product[]> GetProductsAsync(params string[] _)
     {
         await default(_);
 
-        var products = new Product[productIds.Length];
+        var products = new Product[_.Length];
 
-        for (int index = 0; index < productIds.Length; index++)
+        for (int index = 0; index < _.Length; index++)
         {
-            var payload = Deserialize(await client.DownloadDataTaskAsync(string.Format(address, productIds[index])))["Payload"];
-            var title = payload?["ShortTitle"]?.InnerText;
-            var platforms = payload["Platforms"].Cast<XmlNode>().Select(node => node.InnerText);
+            var payload = Deserialize(await client.DownloadDataTaskAsync(
+                $"https://storeedgefd.dsx.mp.microsoft.com/v9.0/products/{_[index]}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop"))
+                .Element("Payload");
+            var title = payload.Element("ShortTitle")?.Value;
+            var platforms = payload.Element("Platforms").Descendants().Select(node => node.Value);
 
             products[index] = new()
             {
-                Title = string.IsNullOrEmpty(title) ? payload["Title"].InnerText : title,
-                AppCategoryId = Deserialize(Encoding.Unicode.GetBytes(payload.GetElementsByTagName("FulfillmentData")[0].InnerText))["WuCategoryId"].InnerText,
+                Title = string.IsNullOrEmpty(title) ? payload.Element("Title").Value : title,
                 Architecture = (
                     platforms.FirstOrDefault(item => item.Equals(architectures.Native.String, StringComparison.OrdinalIgnoreCase)) ??
                     platforms.FirstOrDefault(item => item.Equals(architectures.Compatible.String, StringComparison.OrdinalIgnoreCase))
-                )?.ToLowerInvariant()
+                )?.ToLowerInvariant(),
+                AppCategoryId = Deserialize(Encoding.Unicode.GetBytes(payload.Descendants("FulfillmentData").First().Value)).Element("WuCategoryId").Value,
+                ProductId = _[index],
             };
         }
-
         return products;
     }
 
@@ -107,10 +138,9 @@ static class Store
     {
         await default(_);
 
-        return (await UploadStringAsync(string.Format(Resources.GetExtendedUpdateInfo2, update.UpdateID, update.RevisionNumber), true))
-        .GetElementsByTagName("Url")
-        .Cast<XmlNode>()
-        .First(node => node.InnerText.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).InnerText;
+        return (await PostAsync(string.Format(Resources.GetExtendedUpdateInfo2, update.UpdateId, update.RevisionNumber), true))
+        .Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}Url")
+        .First(node => node.Value.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).Value;
     }
 
     internal static async Task<List<UpdateIdentity>> GetUpdates(Product product)
@@ -119,24 +149,28 @@ static class Store
 
         if (product.Architecture is null) return [];
 
-        var result = (XmlElement)(await UploadStringAsync(string.Format(
+        var result = (await PostAsync(string.Format(
             _ ??= string.Format(Resources.GetString("SyncUpdates.xml.gz"),
-            (await UploadStringAsync(Resources.GetString("GetCookie.xml.gz"))).GetElementsByTagName("EncryptedData")[0].InnerText, "{0}"), product.AppCategoryId), false)).GetElementsByTagName("SyncUpdatesResult")[0];
+            (await PostAsync(Resources.GetString("GetCookie.xml.gz"))).Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}EncryptedData").First().Value, "{0}"),
+            product.AppCategoryId), false))
+            .Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}SyncUpdatesResult").First();
 
-        var nodes = result.GetElementsByTagName("AppxPackageInstallData");
-        if (nodes.Count == 0) return [];
+        var elements = result.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}AppxPackageInstallData");
+        if (!elements.Any()) return [];
 
         ProcessorArchitecture architecture;
         Dictionary<string, Update> dictionary = [];
 
-        foreach (XmlNode node in nodes)
+        foreach (var element in elements)
         {
-            var element = (XmlElement)node.ParentNode.ParentNode.ParentNode;
-            var file = element.GetElementsByTagName("File")[0];
-            if (Path.GetExtension(file.Attributes["FileName"].InnerText).StartsWith(".e", StringComparison.OrdinalIgnoreCase)) continue;
+            var parent = element.Parent.Parent.Parent;
+            var file = parent.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}File").First();
+            if (Path.GetExtension(file.Attribute("FileName").Value).StartsWith(".e", StringComparison.OrdinalIgnoreCase)) continue;
 
-            var identity = file.Attributes["InstallerSpecificIdentifier"].InnerText.Split('_');
+            var name = file.Attribute("InstallerSpecificIdentifier").Value;
+            var identity = name.Split('_');
             var neutral = identity[2] == "neutral";
+
             if (!neutral && identity[2] != architectures.Native.String && identity[2] != architectures.Compatible.String) continue;
             architecture = (neutral ? product.Architecture : identity[2]) switch
             {
@@ -151,43 +185,51 @@ static class Store
             if (!dictionary.ContainsKey(key)) dictionary.Add(key, new()
             {
                 Architecture = architecture,
-                PackageFamilyName = $"{identity[0]}_{identity[4]}",
+                PackageFullName = name,
+                PackageIdentity = identity,
                 Version = identity[1],
-                MainPackage = node.Attributes["MainPackage"].InnerText == "true"
+                MainPackage = element.Attribute("MainPackage").Value == "true"
             });
 
-            var modified = Convert.ToDateTime(file.Attributes["Modified"].InnerText);
+            var modified = Convert.ToDateTime(file.Attribute("Modified").Value);
             if (dictionary[key].Modified < modified)
             {
-                dictionary[key].ID = element["ID"].InnerText;
+                dictionary[key].Id = parent.Element("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}ID").Value;
                 dictionary[key].Modified = modified;
             }
         }
 
-        var values = dictionary.Where(item => item.Value.MainPackage).Select(item => item.Value);
-        architecture = (
-            values.FirstOrDefault(value => value.Architecture == architectures.Native.Architecture) ??
-            values.FirstOrDefault(value => value.Architecture == architectures.Compatible.Architecture)
-        ).Architecture;
-        var items = dictionary.Select(item => item.Value).Where(item => item.Architecture == architecture);
+        var values = dictionary.Where(_ => _.Value.MainPackage).Select(_ => _.Value);
+        var value = values.FirstOrDefault(_ => _.Architecture == architectures.Native.Architecture) ?? values.FirstOrDefault(_ => _.Architecture == architectures.Compatible.Architecture);
+        architecture = value.Architecture;
+
+        var enumerable = Deserialize(
+            await client.DownloadDataTaskAsync($"https://displaycatalog.mp.microsoft.com/v7.0/products/{product.ProductId}?languages=iv&market={GlobalizationPreferences.HomeGeographicRegion}"))
+            .Descendants("FrameworkDependencies")
+            .First(_ => _.Parent.Element("PackageFullName").Value == value.PackageFullName)
+            .Descendants("PackageIdentity")
+            .Select(_ => _.Value);
+
+        var items = dictionary
+        .Select(_ => _.Value)
+        .Where(_ => _.Architecture == architecture && (_.MainPackage || enumerable.Contains(_.PackageIdentity[0])));
 
         List<UpdateIdentity> list = [];
-
-        foreach (XmlNode node in result.GetElementsByTagName("SecuredFragment"))
+        foreach (var element in result.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}SecuredFragment"))
         {
-            var element = (XmlElement)node.ParentNode.ParentNode.ParentNode;
-            var item = items.FirstOrDefault(item => item.ID == element["ID"].InnerText);
+            var parent = element.Parent.Parent.Parent;
+            var item = items.FirstOrDefault(item => item.Id == parent.Element("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}ID").Value);
             if (item is null) continue;
 
-            var package = PackageManager.FindPackagesForUser(string.Empty, item.PackageFamilyName).FirstOrDefault(package => package.Id.Architecture == item.Architecture || item.MainPackage);
+            var package = PackageManager.FindPackagesForUser(string.Empty, $"{item.PackageIdentity[0]}_{item.PackageIdentity[4]}").FirstOrDefault(_ => _.Id.Architecture == item.Architecture || item.MainPackage);
             if (package is null || (package.SignatureKind == PackageSignatureKind.Store &&
                 new Version(item.Version) > new Version(package.Id.Version.Major, package.Id.Version.Minor, package.Id.Version.Build, package.Id.Version.Revision)))
             {
-                var attributes = element.GetElementsByTagName("UpdateIdentity")[0].Attributes;
+                var identity = parent.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}UpdateIdentity").First();
                 list.Add(new()
                 {
-                    UpdateID = attributes["UpdateID"].InnerText,
-                    RevisionNumber = attributes["RevisionNumber"].InnerText,
+                    UpdateId = identity.Attribute("UpdateID").Value,
+                    RevisionNumber = identity.Attribute("RevisionNumber").Value,
                     MainPackage = item.MainPackage
                 });
             }
@@ -198,21 +240,16 @@ static class Store
         return list;
     }
 
-    static XmlElement Deserialize(byte[] buffer)
+    static XElement Deserialize(byte[] buffer)
     {
-        using var reader = JsonReaderWriterFactory.CreateJsonReader(buffer, XmlDictionaryReaderQuotas.Max);
-        XmlDocument document = new();
-        document.Load(reader);
-        return document["root"];
+        using var _ = JsonReaderWriterFactory.CreateJsonReader(buffer, System.Xml.XmlDictionaryReaderQuotas.Max);
+        return XDocument.Load(_).Element("root");
     }
 
-    static async Task<XmlDocument> UploadStringAsync(string data, bool? _ = null)
+    static async Task<XDocument> PostAsync(string data, bool? _ = null)
     {
         client.Headers["Content-Type"] = "application/soap+xml";
         var value = await client.UploadStringTaskAsync(_.HasValue && _.Value ? "secured" : string.Empty, data);
-
-        XmlDocument document = new();
-        document.LoadXml(_.HasValue && !_.Value ? WebUtility.HtmlDecode(value) : value);
-        return document;
+        return XDocument.Parse(_.HasValue && !_.Value ? WebUtility.HtmlDecode(value) : value);
     }
 }

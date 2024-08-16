@@ -125,15 +125,14 @@ class MainWindow : Window
                     textBlock1.Text = "Downloading...";
                     textBlock2.Text = list.Count != 1 ? $"{index + 1} / {list.Count}" : null;
                     progressBar.Value = 0;
-
-                    try
-                    {
-                        await client.DownloadFileTaskAsync(await Store.GetUrl(list[index]), (packageUri = new(Path.GetTempFileName())).LocalPath);
-                        operation = Store.PackageManager.AddPackageAsync(packageUri, null, DeploymentOptions.ForceApplicationShutdown);
-                        operation.Progress += (sender, e) => Dispatcher.Invoke(() => { if (progressBar.Value != e.percentage) progressBar.Value = e.percentage; });
-                        await operation;
-                    }
-                    finally { DeleteFile(packageUri.LocalPath); }
+                  try
+                   {
+                     await client.DownloadFileTaskAsync(await Store.GetUrl(list[index]), (packageUri = new(Path.GetTempFileName())).LocalPath);
+                      operation = Store.PackageManager.AddPackageAsync(packageUri, null, DeploymentOptions.ForceApplicationShutdown);
+                      operation.Progress += (sender, e) => Dispatcher.Invoke(() => { if (progressBar.Value != e.percentage) progressBar.Value = e.percentage; });
+                     await operation;
+                   }
+                  finally { DeleteFile(packageUri.LocalPath); }
                 }
             }
             Close();
