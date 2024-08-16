@@ -143,7 +143,7 @@ static class Store
         .First(_ => _.Value.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).Value;
     }
 
-    internal static async Task<List<UpdateIdentity>> GetUpdates(Product product)
+    internal static async Task<List<UpdateIdentity>> GetUpdatesAsync(Product product)
     {
         await default(_);
 

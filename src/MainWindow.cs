@@ -118,7 +118,7 @@ class MainWindow : Window
                 textBlock1.Text = $"Preparing {product.Title}...";
                 textBlock2.Text = default;
 
-                var list = await Store.GetUpdates(product);
+                var list = await Store.GetUpdatesAsync(product);
                 if (list.Count != 0) progressBar.IsIndeterminate = false;
                 for (int index = 0; index < list.Count; index++)
                 {
