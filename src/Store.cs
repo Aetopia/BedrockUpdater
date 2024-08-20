@@ -70,15 +70,11 @@ file readonly struct _ : INotifyCompletion
 
 static class Store
 {
-    static string _;
-
     internal static readonly PackageManager PackageManager = new();
 
-    static readonly WebClient client = new()
-    {
-        BaseAddress = "https://fe3cr.delivery.mp.microsoft.com/ClientWebService/client.asmx/",
-        Encoding = Encoding.UTF8
-    };
+    static string _;
+
+    static readonly WebClient client = new() { BaseAddress = "https://fe3cr.delivery.mp.microsoft.com/ClientWebService/client.asmx/" };
 
     static readonly (
         (string String, ProcessorArchitecture Architecture) Native,
@@ -122,11 +118,9 @@ static class Store
 
             products[index] = new()
             {
-                Title = string.IsNullOrEmpty(title) ? payload.Element("Title").Value : title,
-                Architecture = (
-                    platforms.FirstOrDefault(_ => _.Equals(architectures.Native.String, StringComparison.OrdinalIgnoreCase)) ??
-                    platforms.FirstOrDefault(_ => _.Equals(architectures.Compatible.String, StringComparison.OrdinalIgnoreCase))
-                )?.ToLowerInvariant(),
+                Title = (string.IsNullOrEmpty(title) ? payload.Element("Title").Value : title).Trim(),
+                Architecture = (platforms.FirstOrDefault(_ => _.Equals(architectures.Native.String, StringComparison.OrdinalIgnoreCase)) ??
+                                platforms.FirstOrDefault(_ => _.Equals(architectures.Compatible.String, StringComparison.OrdinalIgnoreCase)))?.ToLowerInvariant(),
                 AppCategoryId = Deserialize(Encoding.Unicode.GetBytes(payload.Descendants("FulfillmentData").First().Value)).Element("WuCategoryId").Value,
                 ProductId = _[index],
             };
@@ -134,25 +128,25 @@ static class Store
         return products;
     }
 
-    internal static async Task<string> GetUrl(UpdateIdentity update)
+    internal static async Task<string> GetUrl(UpdateIdentity _)
     {
         await default(_);
 
-        return (await PostAsync(string.Format(Resources.GetExtendedUpdateInfo2, update.UpdateId, update.RevisionNumber), true))
+        return (await PostAsync(string.Format(Resources.GetExtendedUpdateInfo2, _.UpdateId, _.RevisionNumber), true))
         .Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}Url")
         .First(_ => _.Value.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).Value;
     }
 
-    internal static async Task<List<UpdateIdentity>> GetUpdatesAsync(Product product)
+    internal static async Task<List<UpdateIdentity>> GetUpdatesAsync(Product _)
     {
         await default(_);
 
-        if (product.Architecture is null) return [];
+        if (_.Architecture is null) return [];
 
         var result = (await PostAsync(string.Format(
-            _ ??= string.Format(Resources.GetString("SyncUpdates.xml.gz"),
+            Store._ ??= string.Format(Resources.GetString("SyncUpdates.xml.gz"),
             (await PostAsync(Resources.GetString("GetCookie.xml.gz"))).Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}EncryptedData").First().Value, "{0}"),
-            product.AppCategoryId), false))
+            _.AppCategoryId), false))
             .Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}SyncUpdatesResult").First();
 
         var elements = result.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}AppxPackageInstallData");
@@ -172,7 +166,7 @@ static class Store
             var neutral = identity[2] == "neutral";
 
             if (!neutral && identity[2] != architectures.Native.String && identity[2] != architectures.Compatible.String) continue;
-            architecture = (neutral ? product.Architecture : identity[2]) switch
+            architecture = (neutral ? _.Architecture : identity[2]) switch
             {
                 "x86" => ProcessorArchitecture.X86,
                 "x64" => ProcessorArchitecture.X64,
@@ -204,7 +198,7 @@ static class Store
         architecture = value.Architecture;
 
         var enumerable = Deserialize(
-            await client.DownloadDataTaskAsync($"https://displaycatalog.mp.microsoft.com/v7.0/products/{product.ProductId}?languages=iv&market={GlobalizationPreferences.HomeGeographicRegion}"))
+            await client.DownloadDataTaskAsync($"https://displaycatalog.mp.microsoft.com/v7.0/products/{_.ProductId}?languages=iv&market={GlobalizationPreferences.HomeGeographicRegion}"))
             .Descendants("FrameworkDependencies")
             .First(_ => _.Parent.Element("PackageFullName").Value == value.PackageFullName)
             .Descendants("PackageIdentity")
@@ -240,10 +234,10 @@ static class Store
         return list;
     }
 
-    static XElement Deserialize(byte[] buffer)
+    static XElement Deserialize(byte[] _)
     {
-        using var _ = JsonReaderWriterFactory.CreateJsonReader(buffer, System.Xml.XmlDictionaryReaderQuotas.Max);
-        return XElement.Load(_);
+        using var reader = JsonReaderWriterFactory.CreateJsonReader(_, System.Xml.XmlDictionaryReaderQuotas.Max);
+        return XElement.Load(reader);
     }
 
     static async Task<XElement> PostAsync(string data, bool? _ = null)

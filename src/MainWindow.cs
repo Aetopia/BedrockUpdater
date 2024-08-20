@@ -119,20 +119,23 @@ class MainWindow : Window
                 textBlock2.Text = default;
 
                 var list = await Store.GetUpdatesAsync(product);
-                if (list.Count != 0) progressBar.IsIndeterminate = false;
-                for (int index = 0; index < list.Count; index++)
+                if (list.Count != 0)
                 {
-                    textBlock1.Text = "Downloading...";
-                    textBlock2.Text = list.Count != 1 ? $"{index + 1} / {list.Count}" : null;
-                    progressBar.Value = 0;
-                    try
+                    progressBar.IsIndeterminate = false;
+                    for (int index = 0; index < list.Count; index++)
                     {
-                        await client.DownloadFileTaskAsync(await Store.GetUrl(list[index]), (packageUri = new(Path.GetTempFileName())).LocalPath);
-                        operation = Store.PackageManager.AddPackageAsync(packageUri, null, DeploymentOptions.ForceApplicationShutdown);
-                        operation.Progress += (sender, e) => Dispatcher.Invoke(() => { if (progressBar.Value != e.percentage) progressBar.Value = e.percentage; });
-                        await operation;
+                        textBlock1.Text = "Downloading...";
+                        textBlock2.Text = list.Count != 1 ? $"{index + 1} / {list.Count}" : null;
+                        progressBar.Value = 0;
+                        try
+                        {
+                            await client.DownloadFileTaskAsync(await Store.GetUrl(list[index]), (packageUri = new(Path.GetTempFileName())).LocalPath);
+                            operation = Store.PackageManager.AddPackageAsync(packageUri, null, DeploymentOptions.ForceApplicationShutdown);
+                            operation.Progress += (sender, e) => Dispatcher.Invoke(() => { if (progressBar.Value != e.percentage) progressBar.Value = e.percentage; });
+                            await operation;
+                        }
+                        finally { DeleteFile(packageUri.LocalPath); }
                     }
-                    finally { DeleteFile(packageUri.LocalPath); }
                 }
             }
             Close();
