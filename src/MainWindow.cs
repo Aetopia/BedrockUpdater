@@ -106,8 +106,7 @@ class MainWindow : Window
             while (client.IsBusy) ;
             operation?.Cancel();
             DeleteFile(packageUri?.AbsolutePath);
-            foreach (var package in Store.PackageManager.FindPackagesForUserWithPackageTypes(string.Empty, PackageTypes.Framework))
-                _ = Store.PackageManager.RemovePackageAsync(package.Id.FullName);
+            foreach (var package in Store.PackageManager.FindPackagesForUserWithPackageTypes(string.Empty, PackageTypes.Framework)) _ = Store.PackageManager.RemovePackageAsync(package.Id.FullName);
         };
 
         ContentRendered += async (sender, e) =>
