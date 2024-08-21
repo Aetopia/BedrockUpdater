@@ -85,8 +85,9 @@ static class Store
 
     static IEnumerable<Product> Products(params string[] ids) => ids.Select(_ =>
     {
-        var payload = Deserialize(client.DownloadData($"https://storeedgefd.dsx.mp.microsoft.com/v9.0/products/{_}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop"))
-        .Element("Payload");
+        var payload = Deserialize(client.DownloadData(
+            $"https://storeedgefd.dsx.mp.microsoft.com/v9.0/products/{_}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop"))
+            .Element("Payload");
         var platforms = payload.Element("Platforms").Descendants().Select(_ => _.Value);
 
         return new Product()
