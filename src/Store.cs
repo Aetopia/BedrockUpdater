@@ -176,7 +176,8 @@ static class Store
                 .Descendants("platform.minVersion").First().Value) >> 16) & 0xFFFF) <= build))
                 return [];
 
-            var package = PackageManager.FindPackagesForUser(string.Empty, $"{item.PackageIdentity[0]}_{item.PackageIdentity[4]}").FirstOrDefault(_ => _.Id.Architecture == item.Architecture || item.MainPackage);
+            var package = PackageManager.FindPackagesForUser(string.Empty, $"{item.PackageIdentity[0]}_{item.PackageIdentity[4]}")
+            .FirstOrDefault(_ => _.Id.Architecture == item.Architecture || item.MainPackage);
             if (package is null || (package.SignatureKind == PackageSignatureKind.Store &&
                 new Version(item.Version) > new Version(package.Id.Version.Major, package.Id.Version.Minor, package.Id.Version.Build, package.Id.Version.Revision)))
             {
