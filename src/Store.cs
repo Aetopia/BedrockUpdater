@@ -12,29 +12,34 @@ using Windows.Management.Deployment;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Json;
 
-struct Product { internal string Architecture; internal string AppCategoryId; internal string Id; }
+struct Product
+{
+    internal string Architecture;
+    internal string AppCategoryId;
+    internal string Id;
+}
 
-struct Update { internal string Id; internal string RevisionNumber; internal bool MainPackage; }
-
-class Class
+struct Update
 {
     internal string Id;
-
-    internal DateTime Modified;
-
-    internal ProcessorArchitecture Architecture;
-
-    internal string PackageFullName;
-
-    internal string[] PackageIdentity;
-
-    internal string Version;
-
+    internal string RevisionNumber;
     internal bool MainPackage;
 }
 
+
 static class Store
 {
+    class _
+    {
+        internal string Id;
+        internal DateTime Modified;
+        internal ProcessorArchitecture Architecture;
+        internal string PackageFullName;
+        internal string[] PackageIdentity;
+        internal string Version;
+        internal bool MainPackage;
+    }
+
     internal static readonly PackageManager PackageManager = new();
 
     static string data;
@@ -106,7 +111,7 @@ static class Store
         if (!elements.Any()) return [];
 
 
-        Dictionary<string, Class> dictionary = [];
+        Dictionary<string, _> dictionary = [];
 
         foreach (var element in elements)
         {
@@ -145,10 +150,10 @@ static class Store
             }
         }
 
-        return product.Where(dictionary).ToList(updates);
+        return product.Filter(dictionary).Verify(updates);
     }
 
-    static IEnumerable<Class> Where(this Product product, Dictionary<string, Class> dictionary)
+    static IEnumerable<_> Filter(this Product product, Dictionary<string, _> dictionary)
     {
         var values = dictionary.Where(_ => _.Value.MainPackage).Select(_ => _.Value);
         var value = values.FirstOrDefault(_ => _.Architecture == native.Architecture) ?? values.FirstOrDefault(_ => _.Architecture == compatible.Architecture);
@@ -163,7 +168,7 @@ static class Store
         return dictionary.Where(_ => _.Value.Architecture == value.Architecture && (_.Value.MainPackage || source.Contains(_.Value.PackageIdentity[0]))).Select(_ => _.Value);
     }
 
-    static List<Update> ToList(this IEnumerable<Class> source, XElement updates)
+    static List<Update> Verify(this IEnumerable<_> source, XElement updates)
     {
         List<Update> list = [];
         foreach (var element in updates.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}SecuredFragment"))
