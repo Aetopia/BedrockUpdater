@@ -106,8 +106,8 @@ static class Store
     {
         if (product.Architecture is null) return [];
 
-        var updates = product.Sync();
-        var elements = updates.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}AppxPackageInstallData");
+        var _ = product.Sync();
+        var elements = _.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}AppxPackageInstallData");
         if (!elements.Any()) return [];
 
 
@@ -150,12 +150,12 @@ static class Store
             }
         }
 
-        return product.Filter(dictionary).Verify(updates);
+        return product.Filter(dictionary).Verify(_);
     }
 
-    static IEnumerable<_> Filter(this Product product, Dictionary<string, _> dictionary)
+    static IEnumerable<_> Filter(this Product product, Dictionary<string, _> _)
     {
-        var values = dictionary.Where(_ => _.Value.MainPackage).Select(_ => _.Value);
+        var values = _.Where(_ => _.Value.MainPackage).Select(_ => _.Value);
         var value = values.FirstOrDefault(_ => _.Architecture == native.Architecture) ?? values.FirstOrDefault(_ => _.Architecture == compatible.Architecture);
 
         var source = Deserialize(
@@ -165,13 +165,13 @@ static class Store
             .Descendants("PackageIdentity")
             .Select(_ => _.Value);
 
-        return dictionary.Where(_ => _.Value.Architecture == value.Architecture && (_.Value.MainPackage || source.Contains(_.Value.PackageIdentity[0]))).Select(_ => _.Value);
+        return _.Where(_ => _.Value.Architecture == value.Architecture && (_.Value.MainPackage || source.Contains(_.Value.PackageIdentity[0]))).Select(_ => _.Value);
     }
 
-    static List<Update> Verify(this IEnumerable<_> source, XElement updates)
+    static List<Update> Verify(this IEnumerable<_> source, XElement _)
     {
         List<Update> list = [];
-        foreach (var element in updates.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}SecuredFragment"))
+        foreach (var element in _.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}SecuredFragment"))
         {
             var parent = element.Parent.Parent.Parent;
             var item = source.FirstOrDefault(_ => _.Id == parent.Element("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}ID").Value);
