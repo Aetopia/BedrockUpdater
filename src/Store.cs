@@ -53,7 +53,7 @@ static class Store
 
     static string data;
 
-    static readonly ulong build = (GetVersion() >> 16) & 0xFFFF;
+    static readonly ulong build = IsOS(29) ? 0 : (GetVersion() >> 16) & 0xFFFF;
 
     static readonly (string String, ProcessorArchitecture Architecture) native = (
         RuntimeInformation.OSArchitecture.ToString().ToLowerInvariant(),
@@ -220,4 +220,7 @@ static class Store
 
     [DllImport("Kernel32"), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     static extern ulong GetVersion();
+
+    [DllImport("Shlwapi"), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static extern bool IsOS(int dwOS);
 }
