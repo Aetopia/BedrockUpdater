@@ -118,11 +118,11 @@ class MainWindow : Window
                 for (int index = 0; index < array.Length; index++)
                 {
                     Dispatcher.Invoke(() =>
-                            {
-                                textBlock1.Text = "Downloading...";
-                                textBlock2.Text = array.Length != 1 ? $"{index + 1} / {array.Length}" : null;
-                                progressBar.Value = 0;
-                            });
+                    {
+                        textBlock1.Text = "Downloading...";
+                        textBlock2.Text = array.Length != 1 ? $"{index + 1} / {array.Length}" : null;
+                        progressBar.Value = 0;
+                    });
                     try
                     {
                         client.DownloadFileTaskAsync(array[index], (packageUri = new(Path.GetTempFileName())).LocalPath).Wait();

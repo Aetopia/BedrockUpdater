@@ -100,20 +100,14 @@ static class Store
                 Id = ids[index],
             };
         }
-        return products.Updates().Urls();
-    }
 
-    internal static string[] Urls(this Update[] updates) => updates.Select(_ => Post(string.Format(Resources.GetExtendedUpdateInfo2, _.UpdateId, _.RevisionNumber), true)
-    .Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}Url")
-    .First(_ => _.Value.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).Value).ToArray();
-
-
-    internal static Update[] Updates(this Product[] products)
-    {
         List<Update> list = [];
         foreach (var product in products) list.AddRange(product.Get());
         list.Sort((x, y) => x.MainPackage ? 1 : -1);
-        return [.. list];
+
+        return list.Select(_ => Post(string.Format(Resources.GetExtendedUpdateInfo2, _.UpdateId, _.RevisionNumber), true)
+        .Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}Url")
+        .First(_ => _.Value.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).Value).ToArray();
     }
 
     static XElement Sync(this Product product) => Post(string.Format(data ??= string.Format(Resources.GetString("SyncUpdates.xml.gz"), Post(Resources.GetString("GetCookie.xml.gz"))
