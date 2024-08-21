@@ -105,7 +105,7 @@ static class Store
         var elements = updates.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}AppxPackageInstallData");
         if (!elements.Any()) return [];
 
-        ProcessorArchitecture architecture;
+
         Dictionary<string, Class> dictionary = [];
 
         foreach (var element in elements)
@@ -116,22 +116,21 @@ static class Store
 
             var name = file.Attribute("InstallerSpecificIdentifier").Value;
             var identity = name.Split('_');
-            var neutral = identity[2] == "neutral";
 
+            var neutral = identity[2] == "neutral";
             if (!neutral && identity[2] != native.String && identity[2] != compatible.String) continue;
-            architecture = (neutral ? product.Architecture : identity[2]) switch
-            {
-                "x86" => ProcessorArchitecture.X86,
-                "x64" => ProcessorArchitecture.X64,
-                "arm" => ProcessorArchitecture.Arm,
-                "arm64" => ProcessorArchitecture.Arm64,
-                _ => ProcessorArchitecture.Unknown
-            };
 
             var key = identity[0] + identity[2];
             if (!dictionary.ContainsKey(key)) dictionary.Add(key, new()
             {
-                Architecture = architecture,
+                Architecture = (neutral ? product.Architecture : identity[2]) switch
+                {
+                    "x86" => ProcessorArchitecture.X86,
+                    "x64" => ProcessorArchitecture.X64,
+                    "arm" => ProcessorArchitecture.Arm,
+                    "arm64" => ProcessorArchitecture.Arm64,
+                    _ => ProcessorArchitecture.Unknown
+                },
                 PackageFullName = name,
                 PackageIdentity = identity,
                 Version = identity[1],
@@ -154,14 +153,14 @@ static class Store
         var values = dictionary.Where(_ => _.Value.MainPackage).Select(_ => _.Value);
         var value = values.FirstOrDefault(_ => _.Architecture == native.Architecture) ?? values.FirstOrDefault(_ => _.Architecture == compatible.Architecture);
 
-        var enumerable = Deserialize(
+        var source = Deserialize(
              client.DownloadData($"https://displaycatalog.mp.microsoft.com/v7.0/products/{product.Id}?languages=iv&market={GlobalizationPreferences.HomeGeographicRegion}"))
             .Descendants("FrameworkDependencies")
             .First(_ => _.Parent.Element("PackageFullName").Value == value.PackageFullName)
             .Descendants("PackageIdentity")
             .Select(_ => _.Value);
 
-        return dictionary.Where(_ => _.Value.Architecture == value.Architecture && (_.Value.MainPackage || enumerable.Contains(_.Value.PackageIdentity[0]))).Select(_ => _.Value);
+        return dictionary.Where(_ => _.Value.Architecture == value.Architecture && (_.Value.MainPackage || source.Contains(_.Value.PackageIdentity[0]))).Select(_ => _.Value);
     }
 
     static List<Update> ToList(this IEnumerable<Class> source, XElement updates)
