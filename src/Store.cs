@@ -75,7 +75,6 @@ static class Store
     internal static string[] Get(params string[] _)
     {
         List<Update> list = [];
-
         foreach (var id in _)
         {
             var payload = Deserialize(client.DownloadData(
@@ -110,9 +109,7 @@ static class Store
         var elements = _.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}AppxPackageInstallData");
         if (!elements.Any()) return [];
 
-
         Dictionary<string, _> dictionary = [];
-
         foreach (var element in elements)
         {
             var parent = element.Parent.Parent.Parent;
@@ -149,7 +146,6 @@ static class Store
                 dictionary[key].Modified = modified;
             }
         }
-
         return product.Filter(dictionary).Verify(_);
     }
 
@@ -157,14 +153,12 @@ static class Store
     {
         var values = _.Where(_ => _.Value.MainPackage).Select(_ => _.Value);
         var value = values.FirstOrDefault(_ => _.Architecture == native.Architecture) ?? values.FirstOrDefault(_ => _.Architecture == compatible.Architecture);
-
         var source = Deserialize(
              client.DownloadData($"https://displaycatalog.mp.microsoft.com/v7.0/products/{product.Id}?languages=iv&market={GlobalizationPreferences.HomeGeographicRegion}"))
             .Descendants("FrameworkDependencies")
             .First(_ => _.Parent.Element("PackageFullName").Value == value.PackageFullName)
             .Descendants("PackageIdentity")
             .Select(_ => _.Value);
-
         return _.Where(_ => _.Value.Architecture == value.Architecture && (_.Value.MainPackage || source.Contains(_.Value.PackageIdentity[0]))).Select(_ => _.Value);
     }
 
