@@ -72,14 +72,14 @@ static class Store
 
     static readonly WebClient client = new() { BaseAddress = "https://fe3cr.delivery.mp.microsoft.com/ClientWebService/client.asmx/" };
 
-    internal static string[] Get(params string[] ids)
+    internal static string[] Get(params string[] _)
     {
         List<Update> list = [];
 
-        for (int index = 0; index < ids.Length; index++)
+        foreach (var id in _)
         {
             var payload = Deserialize(client.DownloadData(
-                $"https://storeedgefd.dsx.mp.microsoft.com/v9.0/products/{ids[index]}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop"))
+                $"https://storeedgefd.dsx.mp.microsoft.com/v9.0/products/{id}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop"))
                 .Element("Payload");
             var platforms = payload.Element("Platforms").Descendants().Select(_ => _.Value);
 
@@ -88,7 +88,7 @@ static class Store
                 Architecture = (platforms.FirstOrDefault(_ => _.Equals(native.String, StringComparison.OrdinalIgnoreCase)) ??
                                 platforms.FirstOrDefault(_ => _.Equals(compatible.String, StringComparison.OrdinalIgnoreCase)))?.ToLowerInvariant(),
                 AppCategoryId = Deserialize(payload.Descendants("FulfillmentData").First().Value).Element("WuCategoryId").Value,
-                Id = ids[index],
+                Id = id,
             }.Get());
         }
 
