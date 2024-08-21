@@ -87,7 +87,6 @@ static class Store
     {
         var payload = Deserialize(client.DownloadData($"https://storeedgefd.dsx.mp.microsoft.com/v9.0/products/{_}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop"))
         .Element("Payload");
-        var title = payload.Element("ShortTitle")?.Value;
         var platforms = payload.Element("Platforms").Descendants().Select(_ => _.Value);
 
         return new Product()
