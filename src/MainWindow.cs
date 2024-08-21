@@ -80,7 +80,7 @@ class MainWindow : Window
         using WebClient client = new();
         string value = default;
 
-        client.DownloadProgressChanged += (sender, e) =>
+        client.DownloadProgressChanged += (sender, e) => Dispatcher.Invoke(() =>
         {
             static string _(float _) { var unit = (int)Math.Log(_, 1024); return $"{_ / Math.Pow(1024, unit):0.00} {(Unit)unit}"; }
             if (progressBar.Value != e.ProgressPercentage)
@@ -88,14 +88,14 @@ class MainWindow : Window
                 textBlock1.Text = $"Downloading {_(e.BytesReceived)} / {value ??= _(e.TotalBytesToReceive)}";
                 progressBar.Value = e.ProgressPercentage;
             }
-        };
+        });
 
-        client.DownloadFileCompleted += (sender, e) =>
+        client.DownloadFileCompleted += (sender, e) => Dispatcher.Invoke(() =>
         {
             value = default;
             progressBar.Value = 0;
             textBlock1.Text = "Installing...";
-        };
+        });
 
         Uri packageUri = default;
         IAsyncOperationWithProgress<DeploymentResult, DeploymentProgress> operation = default;
@@ -109,35 +109,41 @@ class MainWindow : Window
             foreach (var package in Store.PackageManager.FindPackagesForUserWithPackageTypes(string.Empty, PackageTypes.Framework)) _ = Store.PackageManager.RemovePackageAsync(package.Id.FullName);
         };
 
-        ContentRendered += async (sender, e) =>
+        ContentRendered += async (sender, e) => await System.Threading.Tasks.Task.Run(() =>
         {
-            foreach (var product in await Store.GetProductsAsync("9WZDNCRD1HKW", preview ? "9P5X4QVLC2XR" : "9NBLGGH2JHXJ"))
+            foreach (var product in Store.GetProducts("9WZDNCRD1HKW", preview ? "9P5X4QVLC2XR" : "9NBLGGH2JHXJ"))
             {
-                progressBar.IsIndeterminate = true;
-                textBlock1.Text = $"Preparing {product.Title}...";
-                textBlock2.Text = default;
+                Dispatcher.Invoke(() =>
+                {
+                    progressBar.IsIndeterminate = true;
+                    textBlock1.Text = $"Preparing {product.Title}...";
+                    textBlock2.Text = default;
+                });
 
-                var list = await Store.GetUpdatesAsync(product);
+                var list = Store.GetUpdates(product);
                 if (list.Count != 0)
                 {
-                    progressBar.IsIndeterminate = false;
+                    Dispatcher.Invoke(() => progressBar.IsIndeterminate = false);
                     for (int index = 0; index < list.Count; index++)
                     {
-                        textBlock1.Text = "Downloading...";
-                        textBlock2.Text = list.Count != 1 ? $"{index + 1} / {list.Count}" : null;
-                        progressBar.Value = 0;
+                        Dispatcher.Invoke(() =>
+                        {
+                            textBlock1.Text = "Downloading...";
+                            textBlock2.Text = list.Count != 1 ? $"{index + 1} / {list.Count}" : null;
+                            progressBar.Value = 0;
+                        });
                         try
                         {
-                            await client.DownloadFileTaskAsync(await Store.GetUrl(list[index]), (packageUri = new(Path.GetTempFileName())).LocalPath);
+                            client.DownloadFileTaskAsync(Store.GetUrl(list[index]), (packageUri = new(Path.GetTempFileName())).LocalPath).Wait();
                             operation = Store.PackageManager.AddPackageAsync(packageUri, null, DeploymentOptions.ForceApplicationShutdown);
                             operation.Progress += (sender, e) => Dispatcher.Invoke(() => { if (progressBar.Value != e.percentage) progressBar.Value = e.percentage; });
-                            await operation;
+                            operation.AsTask().Wait();
                         }
                         finally { DeleteFile(packageUri.LocalPath); }
                     }
                 }
             }
             Close();
-        };
+        });
     }
 }
