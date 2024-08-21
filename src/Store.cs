@@ -12,18 +12,16 @@ using Windows.Management.Deployment;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Json;
 
-struct Product
+class Product
 {
-    internal string Title;
-
     internal string Architecture;
 
-    internal string ProductId;
-
     internal string AppCategoryId;
+
+    internal string Id;
 }
 
-struct UpdateIdentity
+class Update
 {
     internal string UpdateId;
 
@@ -32,7 +30,7 @@ struct UpdateIdentity
     internal bool MainPackage;
 }
 
-file class Update
+class UpdateIdentity
 {
     internal string Id;
 
@@ -51,86 +49,87 @@ file class Update
 
 static class Store
 {
-    [DllImport("Kernel32"), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    static extern ulong GetVersion();
-
     internal static readonly PackageManager PackageManager = new();
 
-    static (string SyncUpdates, ulong Build) _ = (null, (GetVersion() >> 16) & 0xFFFF);
+    static string data;
+
+    static readonly ulong build = (GetVersion() >> 16) & 0xFFFF;
+
+    static readonly (string String, ProcessorArchitecture Architecture) native = (
+        RuntimeInformation.OSArchitecture.ToString().ToLowerInvariant(),
+        RuntimeInformation.OSArchitecture switch
+        {
+            Architecture.X86 => ProcessorArchitecture.X86,
+            Architecture.X64 => ProcessorArchitecture.X64,
+            Architecture.Arm => ProcessorArchitecture.Arm,
+            Architecture.Arm64 => ProcessorArchitecture.Arm64,
+            _ => ProcessorArchitecture.Unknown
+        });
+
+    static readonly (string String, ProcessorArchitecture Architecture) compatible = (
+        RuntimeInformation.OSArchitecture switch
+        {
+            Architecture.X64 => "x86",
+            Architecture.Arm64 => "arm",
+            _ => null
+        }, RuntimeInformation.OSArchitecture switch
+        {
+            Architecture.X64 => ProcessorArchitecture.X86,
+            Architecture.Arm64 => ProcessorArchitecture.Arm,
+            _ => ProcessorArchitecture.Unknown
+        });
 
     static readonly WebClient client = new() { BaseAddress = "https://fe3cr.delivery.mp.microsoft.com/ClientWebService/client.asmx/" };
 
-    static readonly (
-        (string String, ProcessorArchitecture Architecture) Native,
-        (string String, ProcessorArchitecture Architecture) Compatible
-    ) architectures = (
-        (
-            RuntimeInformation.OSArchitecture.ToString().ToLowerInvariant(),
-            RuntimeInformation.OSArchitecture switch
-            {
-                Architecture.X86 => ProcessorArchitecture.X86,
-                Architecture.X64 => ProcessorArchitecture.X64,
-                Architecture.Arm => ProcessorArchitecture.Arm,
-                Architecture.Arm64 => ProcessorArchitecture.Arm64,
-                _ => ProcessorArchitecture.Unknown
-            }
-        ),
-        (
-            RuntimeInformation.OSArchitecture switch { Architecture.X64 => "x86", Architecture.Arm64 => "arm", _ => null },
-            RuntimeInformation.OSArchitecture switch
-            {
-                Architecture.X64 => ProcessorArchitecture.X86,
-                Architecture.Arm64 => ProcessorArchitecture.Arm,
-                _ => ProcessorArchitecture.Unknown
-            }
-        )
-    );
-
-    internal static Product[] GetProducts(params string[] _)
+    internal static string[] Get(params string[] ids)
     {
-        var products = new Product[_.Length];
+        var products = new Product[ids.Length];
 
-        for (int index = 0; index < _.Length; index++)
+        for (int index = 0; index < ids.Length; index++)
         {
             var payload = Deserialize(client.DownloadData(
-                $"https://storeedgefd.dsx.mp.microsoft.com/v9.0/products/{_[index]}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop"))
+                $"https://storeedgefd.dsx.mp.microsoft.com/v9.0/products/{ids[index]}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop"))
                 .Element("Payload");
-            var title = payload.Element("ShortTitle")?.Value;
             var platforms = payload.Element("Platforms").Descendants().Select(_ => _.Value);
 
             products[index] = new()
             {
-                Title = (string.IsNullOrEmpty(title) ? payload.Element("Title").Value : title).Trim(),
-                Architecture = (platforms.FirstOrDefault(_ => _.Equals(architectures.Native.String, StringComparison.OrdinalIgnoreCase)) ??
-                                platforms.FirstOrDefault(_ => _.Equals(architectures.Compatible.String, StringComparison.OrdinalIgnoreCase)))?.ToLowerInvariant(),
+                Architecture = (platforms.FirstOrDefault(_ => _.Equals(native.String, StringComparison.OrdinalIgnoreCase)) ??
+                                platforms.FirstOrDefault(_ => _.Equals(compatible.String, StringComparison.OrdinalIgnoreCase)))?.ToLowerInvariant(),
                 AppCategoryId = Deserialize(payload.Descendants("FulfillmentData").First().Value).Element("WuCategoryId").Value,
-                ProductId = _[index],
+                Id = ids[index],
             };
         }
-        return products;
+        return products.Updates().Urls();
     }
 
-    internal static string GetUrl(UpdateIdentity _)
+    internal static string[] Urls(this Update[] updates) => updates.Select(_ => Post(string.Format(Resources.GetExtendedUpdateInfo2, _.UpdateId, _.RevisionNumber), true)
+    .Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}Url")
+    .First(_ => _.Value.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).Value).ToArray();
+
+
+    internal static Update[] Updates(this Product[] products)
     {
-        return Post(string.Format(Resources.GetExtendedUpdateInfo2, _.UpdateId, _.RevisionNumber), true)
-        .Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}Url")
-        .First(_ => _.Value.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).Value;
+        List<Update> list = [];
+        foreach (var product in products) list.AddRange(product.Get());
+        list.Sort((x, y) => x.MainPackage ? 1 : -1);
+        return [.. list];
     }
 
-    internal static List<UpdateIdentity> GetUpdates(Product _)
+    static XElement Sync(this Product product) => Post(string.Format(data ??= string.Format(Resources.GetString("SyncUpdates.xml.gz"), Post(Resources.GetString("GetCookie.xml.gz"))
+    .Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}EncryptedData").First().Value, "{0}"), product.AppCategoryId), false)
+    .Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}SyncUpdatesResult").First();
+
+    static IEnumerable<Update> Get(this Product product)
     {
+        if (product.Architecture is null) return [];
 
-        if (_.Architecture is null) return [];
-
-        var result = Post(string.Format(Store._.SyncUpdates ??= string.Format(Resources.GetString("SyncUpdates.xml.gz"),
-            Post(Resources.GetString("GetCookie.xml.gz")).Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}EncryptedData").First().Value, "{0}"), _.AppCategoryId), false)
-            .Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}SyncUpdatesResult").First();
-
-        var elements = result.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}AppxPackageInstallData");
+        var updates = product.Sync();
+        var elements = updates.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}AppxPackageInstallData");
         if (!elements.Any()) return [];
 
         ProcessorArchitecture architecture;
-        Dictionary<string, Update> dictionary = [];
+        Dictionary<string, UpdateIdentity> dictionary = [];
 
         foreach (var element in elements)
         {
@@ -142,8 +141,8 @@ static class Store
             var identity = name.Split('_');
             var neutral = identity[2] == "neutral";
 
-            if (!neutral && identity[2] != architectures.Native.String && identity[2] != architectures.Compatible.String) continue;
-            architecture = (neutral ? _.Architecture : identity[2]) switch
+            if (!neutral && identity[2] != native.String && identity[2] != compatible.String) continue;
+            architecture = (neutral ? product.Architecture : identity[2]) switch
             {
                 "x86" => ProcessorArchitecture.X86,
                 "x64" => ProcessorArchitecture.X64,
@@ -170,31 +169,38 @@ static class Store
             }
         }
 
+        return product.Filter(dictionary).Verify(updates);
+    }
+
+    static UpdateIdentity[] Filter(this Product product, Dictionary<string, UpdateIdentity> dictionary)
+    {
         var values = dictionary.Where(_ => _.Value.MainPackage).Select(_ => _.Value);
-        var value = values.FirstOrDefault(_ => _.Architecture == architectures.Native.Architecture) ?? values.FirstOrDefault(_ => _.Architecture == architectures.Compatible.Architecture);
-        architecture = value.Architecture;
+        var value = values.FirstOrDefault(_ => _.Architecture == native.Architecture) ?? values.FirstOrDefault(_ => _.Architecture == compatible.Architecture);
+        ProcessorArchitecture architecture = value.Architecture;
 
         var enumerable = Deserialize(
-             client.DownloadData($"https://displaycatalog.mp.microsoft.com/v7.0/products/{_.ProductId}?languages=iv&market={GlobalizationPreferences.HomeGeographicRegion}"))
+             client.DownloadData($"https://displaycatalog.mp.microsoft.com/v7.0/products/{product.Id}?languages=iv&market={GlobalizationPreferences.HomeGeographicRegion}"))
             .Descendants("FrameworkDependencies")
             .First(_ => _.Parent.Element("PackageFullName").Value == value.PackageFullName)
             .Descendants("PackageIdentity")
             .Select(_ => _.Value);
 
-        var items = dictionary
-        .Select(_ => _.Value)
-        .Where(_ => _.Architecture == architecture && (_.MainPackage || enumerable.Contains(_.PackageIdentity[0])));
+        return dictionary.Select(_ => _.Value).Where(_ => _.Architecture == architecture && (_.MainPackage || enumerable.Contains(_.PackageIdentity[0]))).ToArray();
+    }
 
-        List<UpdateIdentity> list = [];
-        foreach (var element in result.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}SecuredFragment"))
+    static List<Update> Verify(this IEnumerable<UpdateIdentity> identities, XElement updates)
+    {
+
+        List<Update> list = [];
+        foreach (var element in updates.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}SecuredFragment"))
         {
             var parent = element.Parent.Parent.Parent;
-            var item = items.FirstOrDefault(item => item.Id == parent.Element("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}ID").Value);
+            var item = identities.FirstOrDefault(_ => _.Id == parent.Element("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}ID").Value);
             if (item is null) continue;
 
             if (!(((ulong.Parse(Deserialize(
                 parent.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}ApplicabilityBlob").First().Value)
-                .Descendants("platform.minVersion").First().Value) >> 16) & 0xFFFF) <= Store._.Build))
+                .Descendants("platform.minVersion").First().Value) >> 16) & 0xFFFF) <= build))
                 return [];
 
             var package = PackageManager.FindPackagesForUser(string.Empty, $"{item.PackageIdentity[0]}_{item.PackageIdentity[4]}").FirstOrDefault(_ => _.Id.Architecture == item.Architecture || item.MainPackage);
@@ -211,16 +217,17 @@ static class Store
             }
             else if (item.MainPackage) return [];
         }
-
-        list.Sort((x, y) => x.MainPackage ? 1 : -1);
         return list;
     }
 
-    static XElement Deserialize(string _) => Deserialize(Encoding.Unicode.GetBytes(_));
+    [DllImport("Kernel32"), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    static extern ulong GetVersion();
 
-    static XElement Deserialize(byte[] _)
+    static XElement Deserialize(string value) => Deserialize(Encoding.Unicode.GetBytes(value));
+
+    static XElement Deserialize(byte[] value)
     {
-        using var reader = JsonReaderWriterFactory.CreateJsonReader(_, System.Xml.XmlDictionaryReaderQuotas.Max);
+        using var reader = JsonReaderWriterFactory.CreateJsonReader(value, System.Xml.XmlDictionaryReaderQuotas.Max);
         return XElement.Load(reader);
     }
 

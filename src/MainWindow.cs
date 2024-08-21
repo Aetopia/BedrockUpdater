@@ -111,39 +111,29 @@ class MainWindow : Window
 
         ContentRendered += async (sender, e) => await System.Threading.Tasks.Task.Run(() =>
         {
-            foreach (var product in Store.GetProducts("9WZDNCRD1HKW", preview ? "9P5X4QVLC2XR" : "9NBLGGH2JHXJ"))
+            var array = Store.Get("9WZDNCRD1HKW", preview ? "9P5X4QVLC2XR" : "9NBLGGH2JHXJ");
+            if (array.Length != 0)
             {
-                Dispatcher.Invoke(() =>
+                Dispatcher.Invoke(() => progressBar.IsIndeterminate = false);
+                for (int index = 0; index < array.Length; index++)
                 {
-                    progressBar.IsIndeterminate = true;
-                    textBlock1.Text = $"Preparing {product.Title}...";
-                    textBlock2.Text = default;
-                });
-
-                var list = Store.GetUpdates(product);
-                if (list.Count != 0)
-                {
-                    Dispatcher.Invoke(() => progressBar.IsIndeterminate = false);
-                    for (int index = 0; index < list.Count; index++)
+                    Dispatcher.Invoke(() =>
+                            {
+                                textBlock1.Text = "Downloading...";
+                                textBlock2.Text = array.Length != 1 ? $"{index + 1} / {array.Length}" : null;
+                                progressBar.Value = 0;
+                            });
+                    try
                     {
-                        Dispatcher.Invoke(() =>
-                        {
-                            textBlock1.Text = "Downloading...";
-                            textBlock2.Text = list.Count != 1 ? $"{index + 1} / {list.Count}" : null;
-                            progressBar.Value = 0;
-                        });
-                        try
-                        {
-                            client.DownloadFileTaskAsync(Store.GetUrl(list[index]), (packageUri = new(Path.GetTempFileName())).LocalPath).Wait();
-                            operation = Store.PackageManager.AddPackageAsync(packageUri, null, DeploymentOptions.ForceApplicationShutdown);
-                            operation.Progress += (sender, e) => Dispatcher.Invoke(() => { if (progressBar.Value != e.percentage) progressBar.Value = e.percentage; });
-                            operation.AsTask().Wait();
-                        }
-                        finally { DeleteFile(packageUri.LocalPath); }
+                        client.DownloadFileTaskAsync(array[index], (packageUri = new(Path.GetTempFileName())).LocalPath).Wait();
+                        operation = Store.PackageManager.AddPackageAsync(packageUri, null, DeploymentOptions.ForceApplicationShutdown);
+                        operation.Progress += (sender, e) => Dispatcher.Invoke(() => { if (progressBar.Value != e.percentage) progressBar.Value = e.percentage; });
+                        operation.AsTask().Wait();
                     }
+                    finally { DeleteFile(packageUri.LocalPath); }
                 }
             }
-            Close();
+            Dispatcher.Invoke(Close);
         });
     }
 }
