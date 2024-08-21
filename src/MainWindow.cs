@@ -25,8 +25,7 @@ class MainWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         ResizeMode = ResizeMode.NoResize;
         SizeToContent = SizeToContent.WidthAndHeight;
-        Closed += (sender, e) => Environment.Exit(0);
-
+        
         Grid grid1 = new() { Width = 1000, Height = 600 };
         Content = grid1;
 
@@ -112,26 +111,24 @@ class MainWindow : Window
         ContentRendered += async (sender, e) => await System.Threading.Tasks.Task.Run(() =>
         {
             var array = Store.Get("9WZDNCRD1HKW", preview ? "9P5X4QVLC2XR" : "9NBLGGH2JHXJ");
-            if (array.Length != 0)
+            Dispatcher.Invoke(() => progressBar.IsIndeterminate = array.Length == 0);
+            for (int index = 0; index < array.Length; index++)
             {
-                Dispatcher.Invoke(() => progressBar.IsIndeterminate = false);
-                for (int index = 0; index < array.Length; index++)
+                Dispatcher.Invoke(() =>
                 {
-                    Dispatcher.Invoke(() =>
-                    {
-                        textBlock1.Text = "Downloading...";
-                        textBlock2.Text = array.Length != 1 ? $"{index + 1} / {array.Length}" : null;
-                        progressBar.Value = 0;
-                    });
-                    try
-                    {
-                        client.DownloadFileTaskAsync(array[index], (packageUri = new(Path.GetTempFileName())).LocalPath).Wait();
-                        operation = Store.PackageManager.AddPackageAsync(packageUri, null, DeploymentOptions.ForceApplicationShutdown);
-                        operation.Progress += (sender, e) => Dispatcher.Invoke(() => { if (progressBar.Value != e.percentage) progressBar.Value = e.percentage; });
-                        operation.AsTask().Wait();
-                    }
-                    finally { DeleteFile(packageUri.LocalPath); }
+                    textBlock1.Text = "Downloading...";
+                    textBlock2.Text = array.Length != 1 ? $"{index + 1} / {array.Length}" : null;
+                    progressBar.Value = 0;
+                });
+
+                try
+                {
+                    client.DownloadFileTaskAsync(array[index], (packageUri = new(Path.GetTempFileName())).LocalPath).Wait();
+                    operation = Store.PackageManager.AddPackageAsync(packageUri, null, DeploymentOptions.ForceApplicationShutdown);
+                    operation.Progress += (sender, e) => Dispatcher.Invoke(() => { if (progressBar.Value != e.percentage) progressBar.Value = e.percentage; });
+                    operation.AsTask().Wait();
                 }
+                finally { DeleteFile(packageUri.LocalPath); }
             }
             Dispatcher.Invoke(Close);
         });
