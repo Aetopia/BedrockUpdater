@@ -12,25 +12,11 @@ using Windows.Management.Deployment;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Json;
 
-class Product
-{
-    internal string Architecture;
+struct Product { internal string Architecture; internal string AppCategoryId; internal string Id; }
 
-    internal string AppCategoryId;
+struct Update { internal string Id; internal string RevisionNumber; internal bool MainPackage; }
 
-    internal string Id;
-}
-
-class Update
-{
-    internal string UpdateId;
-
-    internal string RevisionNumber;
-
-    internal bool MainPackage;
-}
-
-class UpdateIdentity
+class Class
 {
     internal string Id;
 
@@ -83,7 +69,7 @@ static class Store
 
     internal static string[] Get(params string[] ids)
     {
-        var products = new Product[ids.Length];
+        List<Update> list = [];
 
         for (int index = 0; index < ids.Length; index++)
         {
@@ -92,20 +78,17 @@ static class Store
                 .Element("Payload");
             var platforms = payload.Element("Platforms").Descendants().Select(_ => _.Value);
 
-            products[index] = new()
+            list.AddRange(new Product
             {
                 Architecture = (platforms.FirstOrDefault(_ => _.Equals(native.String, StringComparison.OrdinalIgnoreCase)) ??
                                 platforms.FirstOrDefault(_ => _.Equals(compatible.String, StringComparison.OrdinalIgnoreCase)))?.ToLowerInvariant(),
                 AppCategoryId = Deserialize(payload.Descendants("FulfillmentData").First().Value).Element("WuCategoryId").Value,
                 Id = ids[index],
-            };
+            }.Get());
         }
 
-        List<Update> list = [];
-        foreach (var product in products) list.AddRange(product.Get());
         list.Sort((x, y) => x.MainPackage ? 1 : -1);
-
-        return list.Select(_ => Post(string.Format(Resources.GetExtendedUpdateInfo2, _.UpdateId, _.RevisionNumber), true)
+        return list.Select(_ => Post(string.Format(Resources.GetExtendedUpdateInfo2, _.Id, _.RevisionNumber), true)
         .Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}Url")
         .First(_ => _.Value.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).Value).ToArray();
     }
@@ -114,7 +97,7 @@ static class Store
     .Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}EncryptedData").First().Value, "{0}"), product.AppCategoryId), false)
     .Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}SyncUpdatesResult").First();
 
-    static IEnumerable<Update> Get(this Product product)
+    static List<Update> Get(this Product product)
     {
         if (product.Architecture is null) return [];
 
@@ -123,7 +106,7 @@ static class Store
         if (!elements.Any()) return [];
 
         ProcessorArchitecture architecture;
-        Dictionary<string, UpdateIdentity> dictionary = [];
+        Dictionary<string, Class> dictionary = [];
 
         foreach (var element in elements)
         {
@@ -163,14 +146,13 @@ static class Store
             }
         }
 
-        return product.Filter(dictionary).Verify(updates);
+        return product.Where(dictionary).ToList(updates);
     }
 
-    static UpdateIdentity[] Filter(this Product product, Dictionary<string, UpdateIdentity> dictionary)
+    static IEnumerable<Class> Where(this Product product, Dictionary<string, Class> dictionary)
     {
         var values = dictionary.Where(_ => _.Value.MainPackage).Select(_ => _.Value);
         var value = values.FirstOrDefault(_ => _.Architecture == native.Architecture) ?? values.FirstOrDefault(_ => _.Architecture == compatible.Architecture);
-        ProcessorArchitecture architecture = value.Architecture;
 
         var enumerable = Deserialize(
              client.DownloadData($"https://displaycatalog.mp.microsoft.com/v7.0/products/{product.Id}?languages=iv&market={GlobalizationPreferences.HomeGeographicRegion}"))
@@ -179,17 +161,16 @@ static class Store
             .Descendants("PackageIdentity")
             .Select(_ => _.Value);
 
-        return dictionary.Select(_ => _.Value).Where(_ => _.Architecture == architecture && (_.MainPackage || enumerable.Contains(_.PackageIdentity[0]))).ToArray();
+        return dictionary.Where(_ => _.Value.Architecture == value.Architecture && (_.Value.MainPackage || enumerable.Contains(_.Value.PackageIdentity[0]))).Select(_ => _.Value);
     }
 
-    static List<Update> Verify(this IEnumerable<UpdateIdentity> identities, XElement updates)
+    static List<Update> ToList(this IEnumerable<Class> source, XElement updates)
     {
-
         List<Update> list = [];
         foreach (var element in updates.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}SecuredFragment"))
         {
             var parent = element.Parent.Parent.Parent;
-            var item = identities.FirstOrDefault(_ => _.Id == parent.Element("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}ID").Value);
+            var item = source.FirstOrDefault(_ => _.Id == parent.Element("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}ID").Value);
             if (item is null) continue;
 
             if (!(((ulong.Parse(Deserialize(
@@ -204,7 +185,7 @@ static class Store
                 var identity = parent.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}UpdateIdentity").First();
                 list.Add(new()
                 {
-                    UpdateId = identity.Attribute("UpdateID").Value,
+                    Id = identity.Attribute("UpdateID").Value,
                     RevisionNumber = identity.Attribute("RevisionNumber").Value,
                     MainPackage = item.MainPackage
                 });
