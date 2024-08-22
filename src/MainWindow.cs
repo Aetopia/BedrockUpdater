@@ -25,7 +25,7 @@ class MainWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         ResizeMode = ResizeMode.NoResize;
         SizeToContent = SizeToContent.WidthAndHeight;
-        
+
         Grid grid1 = new() { Width = 1000, Height = 600 };
         Content = grid1;
 

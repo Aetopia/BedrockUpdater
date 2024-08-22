@@ -81,9 +81,7 @@ static class Store
 
     static readonly WebClient client = new() { BaseAddress = "https://fe3cr.delivery.mp.microsoft.com/ClientWebService/client.asmx/" };
 
-    internal static string[] Get(params string[] ids) => Products(ids).Updates().Urls();
-
-    static IEnumerable<Product> Products(params string[] ids) => ids.Select(_ =>
+    internal static string[] Get(params string[] ids) => ids.Select(_ =>
     {
         var payload = Deserialize(client.DownloadData(
             $"https://storeedgefd.dsx.mp.microsoft.com/v9.0/products/{_}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop"))
@@ -97,15 +95,9 @@ static class Store
             AppCategoryId = Deserialize(payload.Descendants("FulfillmentData").First().Value).Element("WuCategoryId").Value,
             Id = _,
         };
-    });
+    }).Where(_ => _.Architecture is not null).SelectMany(_ => _.Get()).OrderBy(_ => _.MainPackage).Get();
 
-    static IEnumerable<Update> Updates(this IEnumerable<Product> products)
-    {
-        List<Update> list = [];
-        return products.Where(_ => _.Architecture is not null).SelectMany(_ => { var updates = _.Sync(); return _.Find(updates); }).OrderBy(_ => _.MainPackage);
-    }
-
-    static string[] Urls(this IEnumerable<Update> updates) => updates.Select(_ => Post(string.Format(Resources.GetExtendedUpdateInfo2, _.Id, _.RevisionNumber), true)
+    static string[] Get(this IEnumerable<Update> updates) => updates.Select(_ => Post(string.Format(Resources.GetExtendedUpdateInfo2, _.Id, _.RevisionNumber), true)
    .Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}Url")
    .First(_ => _.Value.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).Value).ToArray();
 
@@ -113,15 +105,21 @@ static class Store
     Post(Resources.GetString("GetCookie.xml.gz")).Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}EncryptedData").First().Value, "{0}"), product.AppCategoryId), false)
     .Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}SyncUpdatesResult").First();
 
-    static List<Update> Find(this Product product, XElement updates)
+    static List<Update> Get(this Product product)
     {
+        var updates = product.Sync();
+        var elements = updates.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}AppxPackageInstallData");
+        if (!elements.Any()) return [];
+
         Dictionary<string, Identity> dictionary = [];
-        foreach (var element in updates.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}AppxPackageInstallData"))
+        foreach (var element in elements)
         {
             var parent = element.Parent.Parent.Parent;
             var file = parent.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}File").First();
-            if (Path.GetExtension(file.Attribute("FileName").Value).StartsWith(".e", StringComparison.OrdinalIgnoreCase)) continue;
+            var attribute = file.Attribute("FileName").Value;
 
+            if (attribute[attribute.LastIndexOf('.') + 1] == 'e') continue;
+          
             var name = file.Attribute("InstallerSpecificIdentifier").Value;
             var identity = name.Split('_');
             var neutral = identity[2] == "neutral";
@@ -152,6 +150,7 @@ static class Store
                 dictionary[key].Modified = modified;
             }
         }
+
         return product.Filter(dictionary).Verify(updates);
     }
 
@@ -175,6 +174,7 @@ static class Store
     static List<Update> Verify(this IEnumerable<Identity> source, XElement updates)
     {
         List<Update> list = [];
+
         foreach (var element in updates.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}SecuredFragment"))
         {
             var parent = element.Parent.Parent.Parent;
@@ -200,6 +200,7 @@ static class Store
             }
             else if (item.MainPackage) return [];
         }
+
         return list;
     }
 
