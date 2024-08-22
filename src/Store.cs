@@ -119,7 +119,7 @@ static class Store
             var attribute = file.Attribute("FileName").Value;
 
             if (attribute[attribute.LastIndexOf('.') + 1] == 'e') continue;
-          
+
             var name = file.Attribute("InstallerSpecificIdentifier").Value;
             var identity = name.Split('_');
             var neutral = identity[2] == "neutral";
@@ -181,7 +181,7 @@ static class Store
             var item = source.FirstOrDefault(_ => _.Id == parent.Element("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}ID").Value);
             if (item is null) continue;
 
-            if (!(((ulong.Parse(Deserialize(
+            if (item.MainPackage && !(((ulong.Parse(Deserialize(
                 parent.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}ApplicabilityBlob").First().Value)
                 .Descendants("platform.minVersion").First().Value) >> 16) & 0xFFFF) <= build))
                 return [];
