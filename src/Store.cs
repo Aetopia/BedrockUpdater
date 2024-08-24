@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Net;
 using System.Linq;
 using System.Text;
@@ -53,7 +52,7 @@ static class Store
 
     static string data;
 
-    static readonly ulong build = IsOS(29) ? 0 : (GetVersion() >> 16) & 0xFFFF;
+    static readonly ulong build = (GetVersion() >> 16) & 0xFFFF;
 
     static readonly (string String, ProcessorArchitecture Architecture) native = (
         RuntimeInformation.OSArchitecture.ToString().ToLowerInvariant(),
@@ -183,7 +182,7 @@ static class Store
 
             if (item.MainPackage && ((ulong.Parse(Deserialize(parent.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}ApplicabilityBlob").First().Value)
                 .Descendants("platform.minVersion").First().Value) >> 16) & 0xFFFF) > build)
-               return [];
+                return [];
 
             var package = PackageManager.FindPackagesForUser(string.Empty, $"{item.PackageIdentity[0]}_{item.PackageIdentity[4]}").FirstOrDefault(_ => _.Id.Architecture == item.Architecture || item.MainPackage);
             if (package is null || (package.SignatureKind == PackageSignatureKind.Store &&
@@ -220,7 +219,4 @@ static class Store
 
     [DllImport("Kernel32"), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     static extern ulong GetVersion();
-
-    [DllImport("Shlwapi"), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    internal static extern bool IsOS(int dwOS);
 }
