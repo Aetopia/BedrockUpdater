@@ -181,8 +181,7 @@ static class Store
             if (item is null) continue;
 
             if (item.MainPackage && ((ulong.Parse(Deserialize(parent.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}ApplicabilityBlob").First().Value)
-                .Descendants("platform.minVersion").First().Value) >> 16) & 0xFFFF) > build)
-                return [];
+                .Descendants("platform.minVersion").First().Value) >> 16) & 0xFFFF) > build) return [];
 
             var package = PackageManager.FindPackagesForUser(string.Empty, $"{item.PackageIdentity[0]}_{item.PackageIdentity[4]}").FirstOrDefault(_ => _.Id.Architecture == item.Architecture || item.MainPackage);
             if (package is null || (package.SignatureKind == PackageSignatureKind.Store &&
