@@ -110,25 +110,28 @@ class MainWindow : Window
 
         ContentRendered += async (sender, e) => await System.Threading.Tasks.Task.Run(() =>
         {
-            var array = Store.Get("9WZDNCRD1HKW", preview ? "9P5X4QVLC2XR" : "9NBLGGH2JHXJ");
-            Dispatcher.Invoke(() => progressBar.IsIndeterminate = array.Length == 0);
-            for (int index = 0; index < array.Length; index++)
+            foreach (var array in Store.Products("9WZDNCRD1HKW", preview ? "9P5X4QVLC2XR" : "9NBLGGH2JHXJ"))
             {
-                Dispatcher.Invoke(() =>
+                Dispatcher.Invoke(() => progressBar.IsIndeterminate = array.Length == 0);
+                for (int index = 0; index < array.Length; index++)
                 {
-                    textBlock1.Text = "Downloading...";
-                    textBlock2.Text = array.Length != 1 ? $"{index + 1} / {array.Length}" : null;
-                    progressBar.Value = 0;
-                });
+                    Dispatcher.Invoke(() =>
+                    {
+                        textBlock1.Text = "Downloading...";
+                        textBlock2.Text = array.Length != 1 ? $"{index + 1} / {array.Length}" : null;
+                        progressBar.Value = 0;
+                    });
 
-                try
-                {
-                    client.DownloadFileTaskAsync(array[index], (packageUri = new(Path.GetTempFileName())).LocalPath).Wait();
-                    operation = Store.PackageManager.AddPackageAsync(packageUri, null, DeploymentOptions.ForceApplicationShutdown);
-                    operation.Progress += (sender, e) => Dispatcher.Invoke(() => { if (progressBar.Value != e.percentage) progressBar.Value = e.percentage; });
-                    operation.AsTask().Wait();
+                    try
+                    {
+                        client.DownloadFileTaskAsync(array[index], (packageUri = new(Path.GetTempFileName())).LocalPath).Wait();
+                        operation = Store.PackageManager.AddPackageAsync(packageUri, null, DeploymentOptions.ForceApplicationShutdown);
+                        operation.Progress += (sender, e) => Dispatcher.Invoke(() => { if (progressBar.Value != e.percentage) progressBar.Value = e.percentage; });
+                        operation.AsTask().Wait();
+                    }
+                    finally { DeleteFile(packageUri.LocalPath); }
                 }
-                finally { DeleteFile(packageUri.LocalPath); }
+                Dispatcher.Invoke(() => { textBlock1.Text = "Preparing..."; textBlock2.Text = null; progressBar.Value = 0; ; progressBar.IsIndeterminate = true; });
             }
             Dispatcher.Invoke(Close);
         });
