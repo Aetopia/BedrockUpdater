@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using Windows.Management.Deployment;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Json;
+using System.Security;
 
 struct Product
 {
@@ -214,6 +215,5 @@ static class Store
         return XElement.Parse(_.HasValue && !_.Value ? WebUtility.HtmlDecode(value) : value);
     }
 
-    [DllImport("Kernel32"), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    static extern ulong GetVersion();
+    [DllImport("Kernel32"), DefaultDllImportSearchPaths(DllImportSearchPath.System32), SuppressUnmanagedCodeSecurity] static extern ulong GetVersion();
 }
