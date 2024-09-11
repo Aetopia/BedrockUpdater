@@ -3,6 +3,7 @@ using System.Net;
 using System.Linq;
 using System.Text;
 using Windows.System;
+using System.Security;
 using System.Xml.Linq;
 using Windows.ApplicationModel;
 using Windows.System.UserProfile;
@@ -10,7 +11,6 @@ using System.Collections.Generic;
 using Windows.Management.Deployment;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Json;
-using System.Security;
 
 struct Product
 {

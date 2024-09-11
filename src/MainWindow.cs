@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Net;
 using System.Windows;
+using System.Security;
 using Windows.Foundation;
 using System.Windows.Media;
 using System.Windows.Controls;
@@ -11,8 +12,7 @@ using System.Windows.Forms.Integration;
 
 class MainWindow : Window
 {
-    [DllImport("Kernel32", CharSet = CharSet.Auto, SetLastError = true), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    internal static extern bool DeleteFile(string lpFileName);
+    [DllImport("Kernel32", CharSet = CharSet.Auto, SetLastError = true), DefaultDllImportSearchPaths(DllImportSearchPath.System32), SuppressUnmanagedCodeSecurity] static extern bool DeleteFile(string lpFileName);
 
     enum Unit { B, KB, MB, GB }
 
