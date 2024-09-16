@@ -16,15 +16,16 @@ readonly struct JsonElement : IEnumerable<JsonElement>
 
     readonly JsonType type;
 
-    public readonly Dictionary<string, object>.KeyCollection Keys => @object.Keys;
-
     static readonly JavaScriptSerializer serializer = new() { MaxJsonLength = int.MaxValue, RecursionLimit = int.MaxValue };
 
     JsonElement(object value)
     {
-        if (value is object[] array) { this.array = array; type = JsonType.Array; }
-        else if (value is Dictionary<string, object> @object) { this.@object = @object; type = JsonType.Object; }
-        else this.value = value;
+        switch (value)
+        {
+            case object[] array: this.array = array; type = JsonType.Array; break;
+            case Dictionary<string, object> @object: this.@object = @object; type = JsonType.Object; break;
+            default: this.value = value; break;
+        }
     }
 
     public JsonElement this[string key] => new(@object[key]);
