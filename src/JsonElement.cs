@@ -3,6 +3,7 @@ using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
 using System.Web.Script.Serialization;
+using Windows.ApplicationModel.Core;
 
 readonly struct JsonElement : IEnumerable<JsonElement>
 {
@@ -56,10 +57,10 @@ readonly struct JsonElement : IEnumerable<JsonElement>
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-    static IEnumerable<KeyValuePair<string, object>> _(object value) => value switch
+    static IEnumerable<KeyValuePair<string, object>> _(object value)
     {
-        object[] array => array.SelectMany(_),
-        Dictionary<string, object> @object => @object.Concat(@object.SelectMany(_ => JsonElement._(_.Value))),
-        _ => []
-    };
+        if (value is object[] array) return array.SelectMany(_);
+        else if (value is Dictionary<string, object> @object) return @object.Concat(@object.SelectMany(_ => JsonElement._(_.Value)));
+        return [];
+    }
 }
