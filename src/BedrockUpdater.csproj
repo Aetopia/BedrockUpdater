@@ -12,7 +12,7 @@
     <ApplicationManifest>Resources/.manifest</ApplicationManifest>
     <ApplicationIcon>Resources/.ico</ApplicationIcon>
 
-    <AssemblyVersion>1.2.4.0</AssemblyVersion>
+    <AssemblyVersion>1.2.3.1</AssemblyVersion>
     <AssemblyTitle>Bedrock Updater</AssemblyTitle>
     <Product>Bedrock Updater</Product>
     <Copyright>Copyright (C) 2024</Copyright>
@@ -44,7 +44,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="System.Web.Extensions" />
     <PackageReference Include="Microsoft.Windows.SDK.Contracts" Version="10.0.19041.2" />
   </ItemGroup>
 </Project>

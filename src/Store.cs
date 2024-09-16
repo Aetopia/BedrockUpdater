@@ -1,6 +1,7 @@
 using System;
 using System.Net;
 using System.Linq;
+using System.Text;
 using Windows.System;
 using System.Security;
 using System.Xml.Linq;
@@ -9,6 +10,7 @@ using Windows.System.UserProfile;
 using System.Collections.Generic;
 using Windows.Management.Deployment;
 using System.Runtime.InteropServices;
+using System.Runtime.Serialization.Json;
 
 struct Product
 {
@@ -81,15 +83,16 @@ static class Store
 
     internal static IEnumerable<string[]> Products(params string[] ids) => ids.Select(_ =>
     {
-        var element = JsonElement.Parse(client.DownloadString($"https://storeedgefd.dsx.mp.microsoft.com/v9.0/products/{_}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop"));
-        var payload = element["Payload"];
-        var platforms = payload["Platforms"].Select(_ => _.Value<string>());
+        var payload = Deserialize(client.DownloadData(
+            $"https://storeedgefd.dsx.mp.microsoft.com/v9.0/products/{_}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop"))
+            .Element("Payload");
+        var platforms = payload.Element("Platforms").Descendants().Select(_ => _.Value);
 
         return new Product()
         {
             Architecture = (platforms.FirstOrDefault(_ => _.Equals(native.String, StringComparison.OrdinalIgnoreCase)) ??
                             platforms.FirstOrDefault(_ => _.Equals(compatible.String, StringComparison.OrdinalIgnoreCase)))?.ToLowerInvariant(),
-            AppCategoryId = JsonElement.Parse(payload._("FulfillmentData").First().Value<string>())["WuCategoryId"].Value<string>(),
+            AppCategoryId = Deserialize(payload.Descendants("FulfillmentData").First().Value).Element("WuCategoryId").Value,
             Id = _,
         };
     }).Where(_ => _.Architecture is not null).Select(_ => _.Get());
@@ -99,7 +102,7 @@ static class Store
    .First(_ => _.Value.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).Value).ToArray();
 
     static XElement Sync(this Product product) => Post(string.Format(data ??= string.Format(Resources.GetString("SyncUpdates.xml.gz"),
-    Post(Resources.GetString("GetCookie.xml.gz")).Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}EncryptedData").First().Value, "{0}"), product.AppCategoryId), decode: true)
+    Post(Resources.GetString("GetCookie.xml.gz")).Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}EncryptedData").First().Value, "{0}"), product.AppCategoryId), false)
     .Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}SyncUpdatesResult").First();
 
     static string[] Get(this Product product)
@@ -159,10 +162,12 @@ static class Store
         var values = dictionary.Where(_ => _.Value.MainPackage).Select(_ => _.Value);
         var value = values.FirstOrDefault(_ => _.Architecture == native.Architecture) ?? values.FirstOrDefault(_ => _.Architecture == compatible.Architecture);
 
-        var source = JsonElement.Parse(client.DownloadString($"https://displaycatalog.mp.microsoft.com/v7.0/products/{product.Id}?languages=iv&market={GlobalizationPreferences.HomeGeographicRegion}"))
-        ._("Packages").First()
-        .Where(_ => _["PackageFullName"].Value<string>() == value.PackageFullName).First()["FrameworkDependencies"]
-        .Select(_ => _["PackageIdentity"].Value<string>());
+        var source = Deserialize(
+            client.DownloadData($"https://displaycatalog.mp.microsoft.com/v7.0/products/{product.Id}?languages=iv&market={GlobalizationPreferences.HomeGeographicRegion}"))
+            .Descendants("FrameworkDependencies")
+            .First(_ => _.Parent.Element("PackageFullName").Value == value.PackageFullName)
+            .Descendants("PackageIdentity")
+            .Select(_ => _.Value);
 
         return dictionary.Where(_ => _.Value.Architecture == value.Architecture && (_.Value.MainPackage || source.Contains(_.Value.PackageIdentity[0]))).Select(_ => _.Value);
     }
@@ -171,20 +176,18 @@ static class Store
     {
         List<Update> list = [];
 
-        foreach (var descendant in updates.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}SecuredFragment"))
+        foreach (var element in updates.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}SecuredFragment"))
         {
-            var parent = descendant.Parent.Parent.Parent;
+            var parent = element.Parent.Parent.Parent;
             var item = source.FirstOrDefault(_ => _.Id == parent.Element("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}ID").Value);
             if (item is null) continue;
 
-            var blob = JsonElement.Parse(parent.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}ApplicabilityBlob").First().Value);
-            if (item.MainPackage && ((ulong)(blob._("platform.minVersion").First().Value<long>() >> 16) & 0xFFFF) > build) return [];
+            var blob = Deserialize(parent.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}ApplicabilityBlob").First().Value);
+            if (item.MainPackage && ((ulong.Parse(blob.Descendants("platform.minVersion").First().Value) >> 16) & 0xFFFF) > build) return [];
 
             var package = PackageManager.FindPackagesForUser(string.Empty, $"{item.PackageIdentity[0]}_{item.PackageIdentity[4]}").FirstOrDefault(_ => _.Id.Architecture == item.Architecture || item.MainPackage);
             if (package is null || (package.SignatureKind == PackageSignatureKind.Store &&
-                new Version((blob._("content.bundledPackages", out var element)
-                ? element.Select(_ => _.Value<string>().Split('_')).First(_ => _[2] == item.Platform)
-                : blob["content.packageId"].Value<string>().Split('_'))[1])
+                new Version((blob.Element("content.bundledPackages")?.Elements().Select(_ => _.Value.Split('_')).FirstOrDefault(_ => _[2] == item.Platform) ?? blob.Element("content.packageId").Value.Split('_'))[1])
                 > new Version(package.Id.Version.Major, package.Id.Version.Minor, package.Id.Version.Build, package.Id.Version.Revision)))
             {
                 var identity = parent.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}UpdateIdentity").First();
@@ -201,11 +204,15 @@ static class Store
         list.Sort((x, y) => x.MainPackage ? 1 : -1); return list;
     }
 
-    static XElement Post(string data, bool secured = false, bool decode = false)
+    static XElement Deserialize(string value) => Deserialize(Encoding.Unicode.GetBytes(value));
+
+    static XElement Deserialize(byte[] value) { using var reader = JsonReaderWriterFactory.CreateJsonReader(value, System.Xml.XmlDictionaryReaderQuotas.Max); return XElement.Load(reader); }
+
+    static XElement Post(string data, bool? _ = null)
     {
         client.Headers["Content-Type"] = "application/soap+xml";
-        var value = client.UploadString(secured ? "secured" : string.Empty, data);
-        return XElement.Parse(decode ? WebUtility.HtmlDecode(value) : value);
+        var value = client.UploadString(_.HasValue && _.Value ? "secured" : string.Empty, data);
+        return XElement.Parse(_.HasValue && !_.Value ? WebUtility.HtmlDecode(value) : value);
     }
 
     [DllImport("Kernel32"), DefaultDllImportSearchPaths(DllImportSearchPath.System32), SuppressUnmanagedCodeSecurity] static extern ulong GetVersion();
