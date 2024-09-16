@@ -1,7 +1,7 @@
 using System;
+using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using System.Web.Script.Serialization;
 
 readonly struct JsonElement : IEnumerable<JsonElement>
@@ -20,12 +20,9 @@ readonly struct JsonElement : IEnumerable<JsonElement>
 
     JsonElement(object value)
     {
-        switch (value)
-        {
-            case object[] array: this.array = array; type = JsonType.Array; break;
-            case Dictionary<string, object> @object: this.@object = @object; type = JsonType.Object; break;
-            default: this.value = value; break;
-        }
+        if (value is object[] array) { this.array = array; type = JsonType.Array; }
+        else if (value is Dictionary<string, object> @object) { this.@object = @object; type = JsonType.Object; }
+        else this.value = value;
     }
 
     public JsonElement this[string key] => new(@object[key]);
