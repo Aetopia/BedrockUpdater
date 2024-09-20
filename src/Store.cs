@@ -11,7 +11,6 @@ using System.Collections.Generic;
 using Windows.Management.Deployment;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Json;
-using System.IO;
 
 struct Product
 {
@@ -61,28 +60,28 @@ static class Store
     static readonly string displaycatalog = $"https://displaycatalog.mp.microsoft.com/v7.0/products/{{0}}?languages=iv&market={GlobalizationPreferences.HomeGeographicRegion}";
 
     static readonly (string String, ProcessorArchitecture Architecture) native = (
-        RuntimeInformation.OSArchitecture.ToString().ToLowerInvariant(),
-        RuntimeInformation.OSArchitecture switch
-        {
-            Architecture.X86 => ProcessorArchitecture.X86,
-            Architecture.X64 => ProcessorArchitecture.X64,
-            Architecture.Arm => ProcessorArchitecture.Arm,
-            Architecture.Arm64 => ProcessorArchitecture.Arm64,
-            _ => ProcessorArchitecture.Unknown
-        });
+    RuntimeInformation.OSArchitecture.ToString().ToLowerInvariant(),
+    RuntimeInformation.OSArchitecture switch
+    {
+        Architecture.X86 => ProcessorArchitecture.X86,
+        Architecture.X64 => ProcessorArchitecture.X64,
+        Architecture.Arm => ProcessorArchitecture.Arm,
+        Architecture.Arm64 => ProcessorArchitecture.Arm64,
+        _ => ProcessorArchitecture.Unknown
+    });
 
     static readonly (string String, ProcessorArchitecture Architecture) compatible = (
-        RuntimeInformation.OSArchitecture switch
-        {
-            Architecture.X64 => "x86",
-            Architecture.Arm64 => "arm",
-            _ => null
-        }, RuntimeInformation.OSArchitecture switch
-        {
-            Architecture.X64 => ProcessorArchitecture.X86,
-            Architecture.Arm64 => ProcessorArchitecture.Arm,
-            _ => ProcessorArchitecture.Unknown
-        });
+    RuntimeInformation.OSArchitecture switch
+    {
+        Architecture.X64 => "x86",
+        Architecture.Arm64 => "arm",
+        _ => null
+    }, RuntimeInformation.OSArchitecture switch
+    {
+        Architecture.X64 => ProcessorArchitecture.X86,
+        Architecture.Arm64 => ProcessorArchitecture.Arm,
+        _ => ProcessorArchitecture.Unknown
+    });
 
     static readonly WebClient client = new() { BaseAddress = "https://fe3cr.delivery.mp.microsoft.com/ClientWebService/client.asmx/" };
 
@@ -162,16 +161,17 @@ static class Store
     {
         if (dictionary.Count == 0) return [];
 
-        var values = dictionary.Where(_ => _.Value.MainPackage).Select(_ => _.Value);
-        var value = values.FirstOrDefault(_ => _.Architecture == native.Architecture) ?? values.FirstOrDefault(_ => _.Architecture == compatible.Architecture);
+        var values = dictionary.Select(_ => _.Value);
+        var enumerable = values.Where(_ => _.MainPackage);
+        var package = enumerable.FirstOrDefault(_ => _.Architecture == native.Architecture || _.Architecture == compatible.Architecture);
 
         var source = Get(string.Format(displaycatalog, product.Id))
         .Descendants("FrameworkDependencies")
-        .FirstOrDefault(_ => _.Parent.Element("PackageFullName").Value == value.PackageFullName)?
+        .FirstOrDefault(_ => _.Parent.Element("PackageFullName").Value == package.PackageFullName)?
         .Descendants("PackageIdentity")
         .Select(_ => _.Value);
 
-        return source is null ? [] : dictionary.Where(_ => _.Value.Architecture == value.Architecture && (_.Value.MainPackage || source.Contains(_.Value.PackageIdentity[0]))).Select(_ => _.Value);
+        return values.Where(_ => _.Architecture == package.Architecture && (_.MainPackage || (source?.Contains(_.PackageIdentity[0]) ?? true)));
     }
 
     static List<Update> Verify(this IEnumerable<Identity> source, XElement updates)
