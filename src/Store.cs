@@ -57,8 +57,6 @@ static class Store
 
     static readonly string storeedgefd = $"https://storeedgefd.dsx.mp.microsoft.com/v9.0/products/{{0}}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop";
 
-    static readonly string displaycatalog = $"https://displaycatalog.mp.microsoft.com/v7.0/products/{{0}}?languages=iv&market={GlobalizationPreferences.HomeGeographicRegion}";
-
     static readonly (string String, ProcessorArchitecture Architecture) native = (
     RuntimeInformation.OSArchitecture.ToString().ToLowerInvariant(),
     RuntimeInformation.OSArchitecture switch
@@ -154,24 +152,15 @@ static class Store
             }
         }
 
-        return product.Filter(dictionary).Verify(updates).Urls();
+        return dictionary.Filter().Verify(updates).Urls();
     }
 
-    static IEnumerable<Identity> Filter(this Product product, Dictionary<string, Identity> dictionary)
+    static IEnumerable<Identity> Filter(this Dictionary<string, Identity> dictionary)
     {
         if (dictionary.Count == 0) return [];
-
         var values = dictionary.Select(_ => _.Value);
-        var enumerable = values.Where(_ => _.MainPackage);
-        var package = enumerable.FirstOrDefault(_ => _.Architecture == native.Architecture || _.Architecture == compatible.Architecture);
-
-        var source = Get(string.Format(displaycatalog, product.Id))
-        .Descendants("FrameworkDependencies")
-        .FirstOrDefault(_ => _.Parent.Element("PackageFullName").Value == package.PackageFullName)?
-        .Descendants("PackageIdentity")
-        .Select(_ => _.Value);
-
-        return values.Where(_ => _.Architecture == package.Architecture && (_.MainPackage || (source?.Contains(_.PackageIdentity[0]) ?? true)));
+        var architecture = values.Where(_ => _.MainPackage).FirstOrDefault(_ => _.Architecture == native.Architecture || _.Architecture == compatible.Architecture).Architecture;
+        return values.Where(_ => _.Architecture == architecture);
     }
 
     static List<Update> Verify(this IEnumerable<Identity> source, XElement updates)
