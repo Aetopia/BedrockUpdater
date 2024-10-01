@@ -1,5 +1,6 @@
 using System;
 using System.Net;
+using System.Xml;
 using System.Linq;
 using System.Text;
 using Windows.System;
@@ -190,12 +191,12 @@ static class Store
         list.Sort((x, y) => x.MainPackage ? 1 : -1); return list;
     }
 
-    static XElement Parse(string value) { using var reader = JsonReaderWriterFactory.CreateJsonReader(Encoding.Unicode.GetBytes(value), System.Xml.XmlDictionaryReaderQuotas.Max); return XElement.Load(reader); }
+    static XElement Parse(string value) { using var reader = JsonReaderWriterFactory.CreateJsonReader(Encoding.Unicode.GetBytes(value), XmlDictionaryReaderQuotas.Max); return XElement.Load(reader); }
 
     static XElement Get(string address)
     {
         using var stream = client.OpenRead(address);
-        using var reader = JsonReaderWriterFactory.CreateJsonReader(stream, System.Xml.XmlDictionaryReaderQuotas.Max);
+        using var reader = JsonReaderWriterFactory.CreateJsonReader(stream, XmlDictionaryReaderQuotas.Max);
         return XElement.Load(reader);
     }
 
