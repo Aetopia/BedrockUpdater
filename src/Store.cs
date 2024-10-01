@@ -3,7 +3,6 @@ using System.Net;
 using System.Linq;
 using System.Text;
 using Windows.System;
-using System.Security;
 using System.Xml.Linq;
 using Windows.ApplicationModel;
 using Windows.System.UserProfile;
@@ -53,7 +52,7 @@ static class Store
 
     static string data;
 
-    static readonly ulong build = (GetVersion() >> 16) & 0xFFFF;
+    static readonly ulong build = (Unmanaged.GetVersion() >> 16) & 0xFFFF;
 
     static readonly string storeedgefd = $"https://storeedgefd.dsx.mp.microsoft.com/v9.0/products/{{0}}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop";
 
@@ -206,6 +205,4 @@ static class Store
         var value = client.UploadString(secured ? "secured" : string.Empty, data);
         return XElement.Parse(decode ? WebUtility.HtmlDecode(value) : value);
     }
-
-    [DllImport("Kernel32"), DefaultDllImportSearchPaths(DllImportSearchPath.System32), SuppressUnmanagedCodeSecurity] static extern ulong GetVersion();
 }

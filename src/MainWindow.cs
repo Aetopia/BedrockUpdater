@@ -2,18 +2,14 @@ using System;
 using System.IO;
 using System.Net;
 using System.Windows;
-using System.Security;
 using Windows.Foundation;
 using System.Windows.Media;
 using System.Windows.Controls;
 using Windows.Management.Deployment;
-using System.Runtime.InteropServices;
 using System.Windows.Forms.Integration;
 
 class MainWindow : Window
 {
-    [DllImport("Kernel32", CharSet = CharSet.Auto, SetLastError = true), DefaultDllImportSearchPaths(DllImportSearchPath.System32), SuppressUnmanagedCodeSecurity] static extern bool DeleteFile(string lpFileName);
-
     enum Unit { B, KB, MB, GB }
 
     internal MainWindow(bool preview)
@@ -104,7 +100,7 @@ class MainWindow : Window
             client.CancelAsync();
             while (client.IsBusy) ;
             operation?.Cancel();
-            DeleteFile(packageUri?.AbsolutePath);
+            Unmanaged.DeleteFile(packageUri?.AbsolutePath);
             foreach (var package in Store.PackageManager.FindPackagesForUserWithPackageTypes(string.Empty, PackageTypes.Framework)) _ = Store.PackageManager.RemovePackageAsync(package.Id.FullName);
         };
 
@@ -129,7 +125,7 @@ class MainWindow : Window
                         operation.Progress += (sender, e) => Dispatcher.Invoke(() => { if (progressBar.Value != e.percentage) progressBar.Value = e.percentage; });
                         operation.AsTask().Wait();
                     }
-                    finally { DeleteFile(packageUri.LocalPath); }
+                    finally { Unmanaged.DeleteFile(packageUri.LocalPath); }
                 }
                 Dispatcher.Invoke(() => { textBlock1.Text = "Preparing..."; textBlock2.Text = null; progressBar.Value = 0; ; progressBar.IsIndeterminate = true; });
             }

@@ -1,15 +1,10 @@
 using System;
 using System.Linq;
-using System.Security;
 using System.Threading;
 using System.Globalization;
-using System.Runtime.InteropServices;
 
 static class Program
 {
-    [DllImport("Shell32", CharSet = CharSet.Auto, SetLastError = true), DefaultDllImportSearchPaths(DllImportSearchPath.System32), SuppressUnmanagedCodeSecurity]
-    static extern int ShellMessageBox(IntPtr hAppInst = default, IntPtr hWnd = default, string lpcText = default, string lpcTitle = "Bedrock Updater", int fuStyle = 0x00000010);
-
     [STAThread]
     static void Main(string[] args)
     {
@@ -19,7 +14,7 @@ static class Program
         {
             var exception = (Exception)e.ExceptionObject;
             while (exception.InnerException != null) exception = exception.InnerException;
-            ShellMessageBox(lpcText: exception.Message);
+            Unmanaged.ShellMessageBox(lpcText: exception.Message);
             Environment.Exit(0);
         };
         new MainWindow(args.FirstOrDefault()?.Equals("/preview", StringComparison.OrdinalIgnoreCase) ?? false).ShowDialog();
