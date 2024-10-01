@@ -6,71 +6,49 @@ using Windows.Foundation;
 using System.Windows.Media;
 using System.Windows.Controls;
 using Windows.Management.Deployment;
-using System.Windows.Forms.Integration;
+using System.Runtime.InteropServices;
 
-class MainWindow : Window
+sealed class MainWindow : Window
 {
     enum Unit { B, KB, MB, GB }
 
-    internal MainWindow(bool preview)
+    public MainWindow(bool preview)
     {
-        UseLayoutRounding = true;
         Icon = global::Resources.GetImageSource(".ico");
-        Title = $"Bedrock Updater - {(preview ? "Minecraft Preview" : "Minecraft")}";
-        Background = new SolidColorBrush(Color.FromRgb(30, 30, 30));
-        WindowStartupLocation = WindowStartupLocation.CenterScreen;
+        UseLayoutRounding = true;
+        Title = "Bedrock Updater";
         ResizeMode = ResizeMode.NoResize;
+        WindowStartupLocation = WindowStartupLocation.CenterScreen;
         SizeToContent = SizeToContent.WidthAndHeight;
+        Background = new SolidColorBrush(Color.FromRgb(30, 30, 30));
 
-        Grid grid1 = new() { Width = 1000, Height = 600 };
-        Content = grid1;
+        Canvas canvas = new() { Width = 381, Height = 115 };
+        Content = canvas;
 
-        WindowsFormsHost host = new()
+        TextBlock block1 = new()
         {
-            Child = new System.Windows.Forms.WebBrowser
-            {
-                ScrollBarsEnabled = false,
-                DocumentText = global::Resources.GetString("Document.html.gz")
-            },
-            IsEnabled = false
+            Text = "Updating Minecraft...",
+            Foreground = Brushes.White
         };
-        Grid.SetRow(host, 0);
-        grid1.RowDefinitions.Add(new());
-        grid1.Children.Add(host);
+        canvas.Children.Add(block1); Canvas.SetLeft(block1, 11); Canvas.SetTop(block1, 15);
 
-        Grid grid2 = new() { Margin = new(10, 0, 10, 10) };
-        Grid.SetRow(grid2, 1);
-        grid1.RowDefinitions.Add(new() { Height = GridLength.Auto });
-        grid1.Children.Add(grid2);
-
-        ProgressBar progressBar = new()
+        TextBlock block2 = new()
         {
-            Height = 32,
+            Text = "Preparing...",
+            Foreground = Brushes.White
+        };
+        canvas.Children.Add(block2); Canvas.SetLeft(block2, 11); Canvas.SetTop(block2, 84);
+
+        ProgressBar bar = new()
+        {
+            Width = 359,
+            Height = 23,
             BorderThickness = default,
             IsIndeterminate = true,
             Foreground = new SolidColorBrush(Color.FromRgb(0, 133, 66)),
             Background = new SolidColorBrush(Color.FromRgb(14, 14, 14))
         };
-        grid2.Children.Add(progressBar);
-
-        TextBlock textBlock1 = new()
-        {
-            Text = "Preparing...",
-            VerticalAlignment = VerticalAlignment.Center,
-            HorizontalAlignment = HorizontalAlignment.Left,
-            Margin = new(16, 0, 0, 1),
-            Foreground = Brushes.White,
-        };
-        grid2.Children.Add(textBlock1);
-
-        TextBlock textBlock2 = new()
-        {
-            VerticalAlignment = VerticalAlignment.Center,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Margin = new(0, 0, 16, 1),
-            Foreground = Brushes.White
-        };
-        grid2.Children.Add(textBlock2);
+        canvas.Children.Add(bar); Canvas.SetLeft(bar, 11); Canvas.SetTop(bar, 46);
 
         using WebClient client = new();
         string value = default;
@@ -78,18 +56,18 @@ class MainWindow : Window
         client.DownloadProgressChanged += (sender, e) => Dispatcher.Invoke(() =>
         {
             static string _(float _) { var unit = (int)Math.Log(_, 1024); return $"{_ / Math.Pow(1024, unit):0.00} {(Unit)unit}"; }
-            if (progressBar.Value != e.ProgressPercentage)
+            if (bar.Value != e.ProgressPercentage)
             {
-                textBlock1.Text = $"Downloading {_(e.BytesReceived)} / {value ??= _(e.TotalBytesToReceive)}";
-                progressBar.Value = e.ProgressPercentage;
+                block2.Text = $"Downloading {_(e.BytesReceived)} / {value ??= _(e.TotalBytesToReceive)}";
+                bar.Value = e.ProgressPercentage;
             }
         });
 
         client.DownloadFileCompleted += (sender, e) => Dispatcher.Invoke(() =>
         {
             value = default;
-            progressBar.Value = 0;
-            textBlock1.Text = "Installing...";
+            bar.Value = 0;
+            block2.Text = "Installing...";
         });
 
         Uri packageUri = default;
@@ -100,7 +78,7 @@ class MainWindow : Window
             client.CancelAsync();
             while (client.IsBusy) ;
             operation?.Cancel();
-            Unmanaged.DeleteFile(packageUri?.AbsolutePath);
+            DeleteFile(packageUri?.AbsolutePath);
             foreach (var package in Store.Manager.FindPackagesForUserWithPackageTypes(string.Empty, PackageTypes.Framework)) _ = Store.Manager.RemovePackageAsync(package.Id.FullName);
         };
 
@@ -108,28 +86,31 @@ class MainWindow : Window
         {
             foreach (var array in Store.Products("9WZDNCRD1HKW", preview ? "9P5X4QVLC2XR" : "9NBLGGH2JHXJ"))
             {
-                Dispatcher.Invoke(() => progressBar.IsIndeterminate = array.Length == 0);
+                Dispatcher.Invoke(() => bar.IsIndeterminate = array.Length == 0);
                 for (int index = 0; index < array.Length; index++)
                 {
                     Dispatcher.Invoke(() =>
                     {
-                        textBlock1.Text = "Downloading...";
-                        textBlock2.Text = array.Length != 1 ? $"{index + 1} / {array.Length}" : null;
-                        progressBar.Value = 0;
+                        block1.Text = array.Length != 1 ? $"Updating Minecraft... - {index + 1} / {array.Length}" : "Updating Minecraft...";
+                        block2.Text = "Downloading...";
+                        bar.Value = 0;
                     });
 
                     try
                     {
                         client.DownloadFileTaskAsync(array[index], (packageUri = new(Path.GetTempFileName())).LocalPath).Wait();
                         operation = Store.Manager.AddPackageAsync(packageUri, null, DeploymentOptions.ForceApplicationShutdown);
-                        operation.Progress += (sender, e) => Dispatcher.Invoke(() => { if (progressBar.Value != e.percentage) progressBar.Value = e.percentage; });
+                        operation.Progress += (sender, e) => Dispatcher.Invoke(() => { if (bar.Value != e.percentage) bar.Value = e.percentage; });
                         operation.AsTask().Wait();
                     }
-                    finally { Unmanaged.DeleteFile(packageUri.LocalPath); }
+                    finally { DeleteFile(packageUri.LocalPath); }
                 }
-                Dispatcher.Invoke(() => { textBlock1.Text = "Preparing..."; textBlock2.Text = null; progressBar.Value = 0; ; progressBar.IsIndeterminate = true; });
+                Dispatcher.Invoke(() => { block1.Text = "Updating Minecraft..."; block2.Text = "Preparing..."; bar.Value = 0; ; bar.IsIndeterminate = true; });
             }
             Dispatcher.Invoke(Close);
         });
     }
+
+    [DllImport("Kernel32", CharSet = CharSet.Auto, SetLastError = true), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    static extern bool DeleteFile(string lpFileName);
 }

@@ -48,7 +48,7 @@ static class Store
 
     static string data;
 
-    static readonly ulong build = (Unmanaged.GetVersion() >> 16) & 0xFFFF;
+    static readonly ulong build = (GetVersion() >> 16) & 0xFFFF;
 
     static readonly string storeedgefd = $"https://storeedgefd.dsx.mp.microsoft.com/v9.0/products/{{0}}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop";
 
@@ -60,23 +60,13 @@ static class Store
     {
         Architecture.X86 => ProcessorArchitecture.X86,
         Architecture.X64 => ProcessorArchitecture.X64,
-        Architecture.Arm => ProcessorArchitecture.Arm,
-        Architecture.Arm64 => ProcessorArchitecture.Arm64,
         _ => ProcessorArchitecture.Unknown
     });
 
     static readonly (string String, ProcessorArchitecture Architecture) compatible = (
-    RuntimeInformation.OSArchitecture switch
-    {
-        Architecture.X64 => "x86",
-        Architecture.Arm64 => "arm",
-        _ => null
-    }, RuntimeInformation.OSArchitecture switch
-    {
-        Architecture.X64 => ProcessorArchitecture.X86,
-        Architecture.Arm64 => ProcessorArchitecture.Arm,
-        _ => ProcessorArchitecture.Unknown
-    });
+    RuntimeInformation.OSArchitecture == Architecture.X64 ? "x86" : default,
+    RuntimeInformation.OSArchitecture == Architecture.X64 ? ProcessorArchitecture.X86 : ProcessorArchitecture.Unknown
+    );
 
     static readonly WebClient client = new() { BaseAddress = "https://fe3cr.delivery.mp.microsoft.com/ClientWebService/client.asmx/" };
 
@@ -184,7 +174,11 @@ static class Store
 
             var package = Manager.FindPackagesForUser(string.Empty, $"{item.Identity[0]}_{item.Identity[4]}").FirstOrDefault(_ => _.Id.Architecture == item.Platform.Architecture || !item.Framework);
             if (package is null || (package.SignatureKind == PackageSignatureKind.Store &&
-                new Version((blob.Element("content.bundledPackages")?.Elements().Select(_ => _.Value.Split('_')).FirstOrDefault(_ => _[2] == item.Platform.String) ?? blob.Element("content.packageId").Value.Split('_'))[1])
+                new Version((
+                    blob.Element("content.bundledPackages")?.Elements().Select(_ => _.Value.Split('_')).FirstOrDefault(_ => _[2] == item.Platform.String)
+                    ??
+                    blob.Element("content.packageId").Value.Split('_'))[1]
+                )
                 > new Version(package.Id.Version.Major, package.Id.Version.Minor, package.Id.Version.Build, package.Id.Version.Revision))) list.Add(item);
             else if (!item.Framework) return [];
         }
@@ -213,4 +207,7 @@ static class Store
         var value = client.UploadString(secured ? "secured" : string.Empty, data);
         return XElement.Parse(decode ? WebUtility.HtmlDecode(value) : value);
     }
+
+    [DllImport("Kernel32"), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+     static extern ulong GetVersion();
 }
