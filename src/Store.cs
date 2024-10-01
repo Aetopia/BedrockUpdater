@@ -55,7 +55,12 @@ static class Store
     static readonly string displaycatalog = $"https://displaycatalog.mp.microsoft.com/v7.0/products/{{0}}?languages=iv&market={GlobalizationPreferences.HomeGeographicRegion}";
 
     static readonly (string String, ProcessorArchitecture Architecture) native = (
-    RuntimeInformation.OSArchitecture.ToString().ToLowerInvariant(),
+    RuntimeInformation.OSArchitecture switch
+    {
+        Architecture.X86 => "x86",
+        Architecture.X64 => "x64",
+        _ => default
+    },
     RuntimeInformation.OSArchitecture switch
     {
         Architecture.X86 => ProcessorArchitecture.X86,
