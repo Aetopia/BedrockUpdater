@@ -118,8 +118,9 @@ static class Store
             var name = element.LocalDescendant("AppxMetadata").Attribute("PackageMoniker").Value;
             var identity = name.Split('_');
 
-            var neutral = identity[2] == "neutral";
-            if (!neutral && identity[2] != native.String && identity[2] != compatible.String) continue;
+            var architecture = identity[2];
+            var neutral = architecture == "neutral";
+            if (!neutral && architecture != native.String && architecture != compatible.String) continue;
 
             var properties = element.LocalDescendant("Properties");
             var update = element.LocalDescendant("UpdateIdentity");
@@ -129,7 +130,7 @@ static class Store
             var rank = int.Parse(properties.Attribute("PackageRank").Value);
             var blob = element.LocalDescendant("ApplicabilityBlob").Value;
 
-            var key = identity[0] + identity[2];
+            var key = identity[0] + architecture;
             if (!packages.ContainsKey(key))
             {
                 packages.Add(key, new()
@@ -140,7 +141,7 @@ static class Store
                     Framework = properties.Attribute("IsAppxFramework")?.Value == "true",
                     Id = id,
                     Revision = revision,
-                    Platform = (neutral ? source.Architecture : identity[2]) == native.String ? native : compatible,
+                    Platform = (neutral ? source.Architecture : architecture) == native.String ? native : compatible,
                     Blob = blob
                 });
                 continue;
