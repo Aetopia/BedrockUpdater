@@ -111,7 +111,7 @@ static class Store
         if (!elements.Any()) return [];
 
         Dictionary<string, Identity> dictionary = [];
-        
+
         foreach (var element in elements)
         {
             var parent = element.Parent.Parent.Parent;
