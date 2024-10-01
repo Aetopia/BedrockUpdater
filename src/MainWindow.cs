@@ -122,14 +122,14 @@ class MainWindow : Window
                         progressBar.Value = 0;
                     });
 
-                    try
-                    {
-                        client.DownloadFileTaskAsync(array[index], (packageUri = new(Path.GetTempFileName())).LocalPath).Wait();
-                        operation = Store.PackageManager.AddPackageAsync(packageUri, null, DeploymentOptions.ForceApplicationShutdown);
-                        operation.Progress += (sender, e) => Dispatcher.Invoke(() => { if (progressBar.Value != e.percentage) progressBar.Value = e.percentage; });
-                        operation.AsTask().Wait();
-                    }
-                    finally { DeleteFile(packageUri.LocalPath); }
+                 //   try
+                  //  {
+                    //    client.DownloadFileTaskAsync(array[index], (packageUri = new(Path.GetTempFileName())).LocalPath).Wait();
+                     //   operation = Store.PackageManager.AddPackageAsync(packageUri, null, DeploymentOptions.ForceApplicationShutdown);
+                     //   operation.Progress += (sender, e) => Dispatcher.Invoke(() => { if (progressBar.Value != e.percentage) progressBar.Value = e.percentage; });
+                     //   operation.AsTask().Wait();
+                  //  }
+                  //  finally { DeleteFile(packageUri.LocalPath); }
                 }
                 Dispatcher.Invoke(() => { textBlock1.Text = "Preparing..."; textBlock2.Text = null; progressBar.Value = 0; ; progressBar.IsIndeterminate = true; });
             }

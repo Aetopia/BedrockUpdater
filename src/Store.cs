@@ -158,14 +158,18 @@ static class Store
     static IEnumerable<Identity> Filter(this Dictionary<string, Identity> dictionary)
     {
         if (dictionary.Count == 0) return [];
-        var values = dictionary.Select(_ => _.Value);
-        var architecture = values.Where(_ => _.MainPackage).FirstOrDefault(_ => _.Architecture == native.Architecture || _.Architecture == compatible.Architecture).Architecture;
-        return values.Where(_ => _.Architecture == architecture);
+        var values = dictionary.Where(_ => _.Value.MainPackage).Select(_ => _.Value);
+        var architecture = (values.FirstOrDefault(_ => _.Architecture == native.Architecture) ?? values.FirstOrDefault(_ => _.Architecture == compatible.Architecture)).Architecture;
+        return dictionary.Where(_ => _.Value.Architecture == architecture).Select(_ => _.Value);
     }
 
     static List<Update> Verify(this IEnumerable<Identity> source, XElement updates)
     {
         List<Update> list = [];
+        foreach (var _ in source)
+        {
+            Console.Write(_.PackageFullName);
+        }
 
         foreach (var element in updates.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}SecuredFragment"))
         {
