@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using Windows.Management.Deployment;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Json;
+using System.Security.Principal;
 
 struct Product
 {
@@ -21,41 +22,42 @@ struct Product
     internal string AppCategoryId;
 }
 
-struct Update
+sealed class Package
 {
-    internal string Id;
+    //  internal string Full = default;
 
-    internal string RevisionNumber;
+    // internal string Family = default;
 
-    internal bool MainPackage;
+    internal string Name = default;
+
+    internal int Rank = default;
+
+    internal bool Framework = default;
+
+    internal string[] Identity = default;
+
+    internal (string String, ProcessorArchitecture Architecture) Platform = default;
+
+    internal string Id = default;
+
+    internal string Revision = default;
+
+    internal string Blob = default;
 }
 
-class Identity
-{
-    internal string Id;
 
-    internal DateTime Modified;
-
-    internal ProcessorArchitecture Architecture;
-
-    internal string Platform;
-
-    internal string PackageFullName;
-
-    internal string[] PackageIdentity;
-
-    internal bool MainPackage;
-}
 
 static class Store
 {
-    internal static readonly PackageManager PackageManager = new();
+    internal static readonly PackageManager Manager = new();
 
     static string data;
 
     static readonly ulong build = (Unmanaged.GetVersion() >> 16) & 0xFFFF;
 
     static readonly string storeedgefd = $"https://storeedgefd.dsx.mp.microsoft.com/v9.0/products/{{0}}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop";
+
+    static readonly string displaycatalog = $"https://displaycatalog.mp.microsoft.com/v7.0/products/{{0}}?languages=iv&market={GlobalizationPreferences.HomeGeographicRegion}";
 
     static readonly (string String, ProcessorArchitecture Architecture) native = (
     RuntimeInformation.OSArchitecture.ToString().ToLowerInvariant(),
@@ -97,99 +99,108 @@ static class Store
         };
     }).Where(_ => _.Architecture is not null).Select(_ => _.Get());
 
-    static string[] Urls(this IEnumerable<Update> updates) => updates.Select(_ => Post(string.Format(Resources.GetExtendedUpdateInfo2, _.Id, _.RevisionNumber), true)
+    static string[] Urls(this IEnumerable<Package> source) => source.Select(_ => Post(string.Format(Resources.GetExtendedUpdateInfo2, _.Id, _.Revision), true)
    .Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}Url")
    .First(_ => _.Value.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).Value).ToArray();
 
-    static XElement Sync(this Product product) => Post(string.Format(data ??= string.Format(Resources.GetString("SyncUpdates.xml.gz"),
-    Post(Resources.GetString("GetCookie.xml.gz")).Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}EncryptedData").First().Value, "{0}"), product.AppCategoryId), decode: true)
+    static XElement Sync(this Product source) => Post(string.Format(data ??= string.Format(Resources.GetString("SyncUpdates.xml.gz"),
+    Post(Resources.GetString("GetCookie.xml.gz")).Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}EncryptedData").First().Value, "{0}"), source.AppCategoryId), decode: true)
     .Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}SyncUpdatesResult").First();
 
-    static string[] Get(this Product product)
+    static string[] Get(this Product source)
     {
-        var updates = product.Sync();
-        var elements = updates.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}AppxPackageInstallData");
-        if (!elements.Any()) return [];
-
-        Dictionary<string, Identity> dictionary = [];
-
-        foreach (var element in elements)
+        var root = source.Sync();
+        var set = root.LocalDescendants("Files").Where(_ =>
         {
-            var parent = element.Parent.Parent.Parent;
-            var file = parent.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}File").First();
-            var attribute = file.Attribute("FileName").Value;
+            var attribute = _.LocalElement("File").Attribute("FileName").Value;
+            return attribute[attribute.LastIndexOf('.') + 1] != 'e';
+        }).Select(_ => _.Parent.Parent.Elements().First().Value).ToHashSet();
 
-            if (attribute[attribute.LastIndexOf('.') + 1] == 'e') continue;
+        Dictionary<string, Package> packages = [];
 
-            var name = file.Attribute("InstallerSpecificIdentifier").Value;
+        foreach (var element in root.LocalDescendants("UpdateInfo").Where(_ => set.Contains(_.LocalElement("ID").Value)))
+        {
+            var name = element.LocalDescendant("AppxMetadata").Attribute("PackageMoniker").Value;
             var identity = name.Split('_');
-            var neutral = identity[2] == "neutral";
 
+            var neutral = identity[2] == "neutral";
             if (!neutral && identity[2] != native.String && identity[2] != compatible.String) continue;
 
+            var properties = element.LocalDescendant("Properties");
+            var update = element.LocalDescendant("UpdateIdentity");
+
+            var id = update.Attribute("UpdateID").Value;
+            var revision = update.Attribute("RevisionNumber").Value;
+            var rank = int.Parse(properties.Attribute("PackageRank").Value);
+            var blob = element.LocalDescendant("ApplicabilityBlob").Value;
+
             var key = identity[0] + identity[2];
-            var platform = neutral ? product.Architecture : identity[2];
-            if (!dictionary.ContainsKey(key)) dictionary.Add(key, new()
+            if (!packages.ContainsKey(key))
             {
-                Architecture = platform switch
+                packages.Add(key, new()
                 {
-                    "x86" => ProcessorArchitecture.X86,
-                    "x64" => ProcessorArchitecture.X64,
-                    "arm" => ProcessorArchitecture.Arm,
-                    "arm64" => ProcessorArchitecture.Arm64,
-                    _ => ProcessorArchitecture.Unknown
-                },
-                Platform = platform,
-                PackageFullName = name,
-                PackageIdentity = identity,
-                MainPackage = element.Attribute("MainPackage").Value == "true"
-            });
-
-            var modified = Convert.ToDateTime(file.Attribute("Modified").Value);
-            if (dictionary[key].Modified < modified)
-            {
-                dictionary[key].Id = parent.Element("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}ID").Value;
-                dictionary[key].Modified = modified;
-            }
-        }
-
-        if (dictionary.Count == 0) return [];
-        var values = dictionary.Where(_ => _.Value.MainPackage).Select(_ => _.Value);
-        var architecture = (values.FirstOrDefault(_ => _.Architecture == native.Architecture) ?? values.FirstOrDefault(_ => _.Architecture == compatible.Architecture)).Architecture;
-        return dictionary.Where(_ => _.Value.Architecture == architecture).Select(_ => _.Value).Verify(updates).Urls();
-    }
-
-    static List<Update> Verify(this IEnumerable<Identity> source, XElement updates)
-    {
-        List<Update> list = [];
-
-        foreach (var element in updates.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}SecuredFragment"))
-        {
-            var parent = element.Parent.Parent.Parent;
-            var item = source.FirstOrDefault(_ => _.Id == parent.Element("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}ID").Value);
-            if (item is null) continue;
-
-            var blob = Parse(parent.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}ApplicabilityBlob").First().Value);
-            if (item.MainPackage && ((ulong.Parse(blob.Descendants("platform.minVersion").First().Value) >> 16) & 0xFFFF) > build) return [];
-
-            var package = PackageManager.FindPackagesForUser(string.Empty, $"{item.PackageIdentity[0]}_{item.PackageIdentity[4]}").FirstOrDefault(_ => _.Id.Architecture == item.Architecture || item.MainPackage);
-            if (package is null || (package.SignatureKind == PackageSignatureKind.Store &&
-                new Version((blob.Element("content.bundledPackages")?.Elements().Select(_ => _.Value.Split('_')).FirstOrDefault(_ => _[2] == item.Platform) ?? blob.Element("content.packageId").Value.Split('_'))[1])
-                > new Version(package.Id.Version.Major, package.Id.Version.Minor, package.Id.Version.Build, package.Id.Version.Revision)))
-            {
-                var identity = parent.Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}UpdateIdentity").First();
-                list.Add(new()
-                {
-                    Id = identity.Attribute("UpdateID").Value,
-                    RevisionNumber = identity.Attribute("RevisionNumber").Value,
-                    MainPackage = item.MainPackage
+                    Name = name,
+                    Identity = identity,
+                    Rank = rank,
+                    Framework = properties.Attribute("IsAppxFramework")?.Value == "true",
+                    Id = id,
+                    Revision = revision,
+                    Platform = (neutral ? source.Architecture : identity[2]) == native.String ? native : compatible,
+                    Blob = blob
                 });
+                continue;
             }
-            else if (item.MainPackage) return [];
+
+            var package = packages[key];
+            if (package.Rank < rank)
+            {
+                package.Name = name;
+                package.Identity = identity;
+                package.Rank = rank;
+                package.Id = id;
+                package.Revision = revision;
+                package.Blob = blob;
+            }
         }
 
-        list.Sort((x, y) => x.MainPackage ? 1 : -1); return list;
+        return packages.Values.Filter(source.Id).Urls();
     }
+
+    static IEnumerable<Package> Filter(this IEnumerable<Package> source, string id)
+    {
+        var items = source.Where(_ => !_.Framework);
+        var main = items.FirstOrDefault(_ => _.Platform.Architecture == native.Architecture) ?? items.FirstOrDefault(_ => _.Platform.Architecture == compatible.Architecture);
+        var architecture = main.Platform.Architecture;
+
+        var set = Get(string.Format(displaycatalog, id))
+        .Descendants("FrameworkDependencies")
+        .FirstOrDefault(_ => _.Parent.Element("PackageFullName").Value == main.Name)?
+        .Descendants("PackageIdentity")
+        .Select(_ => _.Value).ToHashSet();
+
+        List<Package> list = [];
+
+        foreach (var item in source.Where(_ => _.Platform.Architecture == architecture && (!_.Framework || (set?.Contains(_.Identity[0]) ?? true))))
+        {
+            var blob = Parse(item.Blob);
+
+            if (!item.Framework && ((ulong.Parse(blob.Descendants("platform.minVersion").First().Value) >> 16) & 0xFFFF) > build) return [];
+
+            var package = Manager.FindPackagesForUser(string.Empty, $"{item.Identity[0]}_{item.Identity[4]}").FirstOrDefault(_ => _.Id.Architecture == item.Platform.Architecture || !item.Framework);
+            if (package is null || (package.SignatureKind == PackageSignatureKind.Store &&
+                new Version((blob.Element("content.bundledPackages")?.Elements().Select(_ => _.Value.Split('_')).FirstOrDefault(_ => _[2] == item.Platform.String) ?? blob.Element("content.packageId").Value.Split('_'))[1])
+                > new Version(package.Id.Version.Major, package.Id.Version.Minor, package.Id.Version.Build, package.Id.Version.Revision))) list.Add(item);
+            else if (!item.Framework) return [];
+        }
+
+        list.Sort((x, y) => x.Framework ? -1 : 1); return list;
+    }
+
+    static XElement LocalElement(this XElement source, string name) => source.Elements().Where(_ => _.Name.LocalName == name).FirstOrDefault();
+
+    static IEnumerable<XElement> LocalDescendants(this XElement source, string name) => source.Descendants().Where(_ => _.Name.LocalName == name);
+
+    static XElement LocalDescendant(this XElement source, string name) => source.LocalDescendants(name).FirstOrDefault();
 
     static XElement Parse(string value) { using var reader = JsonReaderWriterFactory.CreateJsonReader(Encoding.Unicode.GetBytes(value), XmlDictionaryReaderQuotas.Max); return XElement.Load(reader); }
 

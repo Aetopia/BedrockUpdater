@@ -101,7 +101,7 @@ class MainWindow : Window
             while (client.IsBusy) ;
             operation?.Cancel();
             Unmanaged.DeleteFile(packageUri?.AbsolutePath);
-            foreach (var package in Store.PackageManager.FindPackagesForUserWithPackageTypes(string.Empty, PackageTypes.Framework)) _ = Store.PackageManager.RemovePackageAsync(package.Id.FullName);
+            foreach (var package in Store.Manager.FindPackagesForUserWithPackageTypes(string.Empty, PackageTypes.Framework)) _ = Store.Manager.RemovePackageAsync(package.Id.FullName);
         };
 
         ContentRendered += async (sender, e) => await System.Threading.Tasks.Task.Run(() =>
@@ -121,7 +121,7 @@ class MainWindow : Window
                     try
                     {
                         client.DownloadFileTaskAsync(array[index], (packageUri = new(Path.GetTempFileName())).LocalPath).Wait();
-                        operation = Store.PackageManager.AddPackageAsync(packageUri, null, DeploymentOptions.ForceApplicationShutdown);
+                        operation = Store.Manager.AddPackageAsync(packageUri, null, DeploymentOptions.ForceApplicationShutdown);
                         operation.Progress += (sender, e) => Dispatcher.Invoke(() => { if (progressBar.Value != e.percentage) progressBar.Value = e.percentage; });
                         operation.AsTask().Wait();
                     }
