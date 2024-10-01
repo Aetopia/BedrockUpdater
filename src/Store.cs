@@ -209,5 +209,5 @@ static class Store
     }
 
     [DllImport("Kernel32"), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-     static extern ulong GetVersion();
+    static extern ulong GetVersion();
 }
