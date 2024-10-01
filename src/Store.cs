@@ -11,7 +11,6 @@ using System.Collections.Generic;
 using Windows.Management.Deployment;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Json;
-using System.Security.Principal;
 
 struct Product
 {
@@ -24,10 +23,6 @@ struct Product
 
 sealed class Package
 {
-    //  internal string Full = default;
-
-    // internal string Family = default;
-
     internal string Name = default;
 
     internal int Rank = default;
