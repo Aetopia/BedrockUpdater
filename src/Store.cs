@@ -182,8 +182,8 @@ static class Store
                 new Version((
                     blob.Element("content.bundledPackages")?.Elements().Select(_ => _.Value.Split('_')).FirstOrDefault(_ => _[2] == item.Platform.String)
                     ??
-                    blob.Element("content.packageId").Value.Split('_'))[1]
-                )
+                    blob.Element("content.packageId").Value.Split('_')
+                )[1])
                 > new Version(package.Id.Version.Major, package.Id.Version.Minor, package.Id.Version.Build, package.Id.Version.Revision))) list.Add(item);
             else if (!item.Framework) return [];
         }

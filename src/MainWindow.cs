@@ -21,22 +21,15 @@ sealed class MainWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         SizeToContent = SizeToContent.WidthAndHeight;
         Background = new SolidColorBrush(Color.FromRgb(30, 30, 30));
+        var text = preview ? "Updating Preview..." : "Updating Release...";
 
         Canvas canvas = new() { Width = 381, Height = 115 };
         Content = canvas;
 
-        TextBlock block1 = new()
-        {
-            Text = "Updating Minecraft...",
-            Foreground = Brushes.White
-        };
+        TextBlock block1 = new() { Text = text, Foreground = Brushes.White };
         canvas.Children.Add(block1); Canvas.SetLeft(block1, 11); Canvas.SetTop(block1, 15);
 
-        TextBlock block2 = new()
-        {
-            Text = "Preparing...",
-            Foreground = Brushes.White
-        };
+        TextBlock block2 = new() { Text = "Preparing...", Foreground = Brushes.White };
         canvas.Children.Add(block2); Canvas.SetLeft(block2, 11); Canvas.SetTop(block2, 84);
 
         ProgressBar bar = new()
@@ -58,7 +51,7 @@ sealed class MainWindow : Window
             static string _(float _) { var unit = (int)Math.Log(_, 1024); return $"{_ / Math.Pow(1024, unit):0.00} {(Unit)unit}"; }
             if (bar.Value != e.ProgressPercentage)
             {
-                block2.Text = $"Downloading {_(e.BytesReceived)} / {value ??= _(e.TotalBytesToReceive)}";
+                block2.Text = $"Downloading... {_(e.BytesReceived)} / {value ??= _(e.TotalBytesToReceive)}";
                 bar.Value = e.ProgressPercentage;
             }
         });
@@ -70,7 +63,7 @@ sealed class MainWindow : Window
             block2.Text = "Installing...";
         });
 
-        Uri packageUri = default;
+        Uri uri = default;
         IAsyncOperationWithProgress<DeploymentResult, DeploymentProgress> operation = default;
 
         AppDomain.CurrentDomain.ProcessExit += (sender, e) =>
@@ -78,7 +71,7 @@ sealed class MainWindow : Window
             client.CancelAsync();
             while (client.IsBusy) ;
             operation?.Cancel();
-            DeleteFile(packageUri?.AbsolutePath);
+            DeleteFile(uri?.AbsolutePath);
             foreach (var package in Store.Manager.FindPackagesForUserWithPackageTypes(string.Empty, PackageTypes.Framework)) _ = Store.Manager.RemovePackageAsync(package.Id.FullName);
         };
 
@@ -91,21 +84,21 @@ sealed class MainWindow : Window
                 {
                     Dispatcher.Invoke(() =>
                     {
-                        block1.Text = array.Length != 1 ? $"Updating Minecraft... - {index + 1} / {array.Length}" : "Updating Minecraft...";
+                        block1.Text = array.Length != 1 ? $"{text} {index + 1} / {array.Length}" : text;
                         block2.Text = "Downloading...";
                         bar.Value = 0;
                     });
 
                     try
                     {
-                        client.DownloadFileTaskAsync(array[index], (packageUri = new(Path.GetTempFileName())).LocalPath).Wait();
-                        operation = Store.Manager.AddPackageAsync(packageUri, null, DeploymentOptions.ForceApplicationShutdown);
-                        operation.Progress += (sender, e) => Dispatcher.Invoke(() => { if (bar.Value != e.percentage) bar.Value = e.percentage; });
+                        client.DownloadFileTaskAsync(array[index], (uri = new(Path.GetTempFileName())).LocalPath).Wait();
+                        operation = Store.Manager.AddPackageAsync(uri, null, DeploymentOptions.ForceApplicationShutdown);
+                        operation.Progress += (sender, e) => Dispatcher.Invoke(() => { if (bar.Value != e.percentage) block2.Text = $"Installing... {bar.Value = e.percentage}%"; });
                         operation.AsTask().Wait();
                     }
-                    finally { DeleteFile(packageUri.LocalPath); }
+                    finally { DeleteFile(uri.LocalPath); }
                 }
-                Dispatcher.Invoke(() => { block1.Text = "Updating Minecraft..."; block2.Text = "Preparing..."; bar.Value = 0; ; bar.IsIndeterminate = true; });
+                Dispatcher.Invoke(() => { block1.Text = text; block2.Text = "Preparing..."; bar.Value = 0; ; bar.IsIndeterminate = true; });
             }
             Dispatcher.Invoke(Close);
         });
