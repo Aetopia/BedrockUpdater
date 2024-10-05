@@ -107,12 +107,10 @@ static class Store
             var neutral = architecture == "neutral";
             if (!neutral && architecture != native.String && architecture != compatible.String) continue;
 
-            var properties = element.LocalDescendant("Properties");
             var update = element.LocalDescendant("UpdateIdentity");
-
             var id = update.Attribute("UpdateID").Value;
             var revision = update.Attribute("RevisionNumber").Value;
-            var rank = int.Parse(properties.Attribute("PackageRank").Value);
+            var rank = int.Parse(element.LocalDescendant("Properties").Attribute("PackageRank").Value);
             var blob = element.LocalDescendant("ApplicabilityBlob").Value;
 
             var key = identity[0] + architecture;
