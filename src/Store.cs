@@ -15,32 +15,21 @@ using System.Runtime.Serialization.Json;
 struct Product
 {
     internal string Architecture;
-
     internal string Id;
-
     internal string AppCategoryId;
 }
 
 sealed class Package
 {
-    internal string Name = default;
-
-    internal int Rank = default;
-
-    internal bool Framework = default;
-
-    internal string[] Identity = default;
-
-    internal (string String, ProcessorArchitecture Architecture) Platform = default;
-
-    internal string Id = default;
-
-    internal string Revision = default;
-
-    internal string Blob = default;
+    internal string Name;
+    internal int Rank;
+    internal bool Main;
+    internal string[] Identity;
+    internal (string String, ProcessorArchitecture Architecture) Platform;
+    internal string Id;
+    internal string Revision;
+    internal string Blob;
 }
-
-
 
 static class Store
 {
@@ -90,26 +79,27 @@ static class Store
     }).Where(_ => _.Architecture is not null).Select(_ => _.Get());
 
     static string[] Urls(this IEnumerable<Package> source) => source.Select(_ => Post(string.Format(Resources.GetExtendedUpdateInfo2, _.Id, _.Revision), true)
-   .Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}Url")
-   .First(_ => _.Value.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).Value).ToArray();
+    .LocalDescendants("Url").First(_ => _.Value.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).Value).ToArray();
 
     static XElement Sync(this Product source) => Post(string.Format(data ??= string.Format(Resources.GetString("SyncUpdates.xml.gz"),
-    Post(Resources.GetString("GetCookie.xml.gz")).Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}EncryptedData").First().Value, "{0}"), source.AppCategoryId), decode: true)
-    .Descendants("{http://www.microsoft.com/SoftwareDistribution/Server/ClientWebService}SyncUpdatesResult").First();
+    Post(Resources.GetString("GetCookie.xml.gz")).LocalDescendant("EncryptedData").Value, "{0}"), source.AppCategoryId), decode: true)
+    .LocalDescendant("SyncUpdatesResult");
 
     static string[] Get(this Product source)
     {
         var root = source.Sync();
-        var set = root.LocalDescendants("Files").Where(_ =>
+        var dictionary = root.LocalDescendants("AppxPackageInstallData").Where(_ =>
         {
-            var attribute = _.LocalElement("File").Attribute("FileName").Value;
+            var attribute = _.Attribute("PackageFileName").Value;
             return attribute[attribute.LastIndexOf('.') + 1] != 'e';
-        }).Select(_ => _.Parent.Parent.Elements().First().Value).ToHashSet();
+        }).ToDictionary(_ => _.Parent.Parent.Parent.LocalElement("ID").Value, _ => _.Attribute("MainPackage").Value == "true");
 
         Dictionary<string, Package> packages = [];
 
-        foreach (var element in root.LocalDescendants("UpdateInfo").Where(_ => set.Contains(_.LocalElement("ID").Value)))
+        foreach (var element in root.LocalDescendants("UpdateInfo"))
         {
+            if (!dictionary.TryGetValue(element.LocalElement("ID").Value, out var main)) continue;
+
             var name = element.LocalDescendant("AppxMetadata").Attribute("PackageMoniker").Value;
             var identity = name.Split('_');
 
@@ -133,7 +123,7 @@ static class Store
                     Name = name,
                     Identity = identity,
                     Rank = rank,
-                    Framework = properties.Attribute("IsAppxFramework")?.Value == "true",
+                    Main = main,
                     Id = id,
                     Revision = revision,
                     Platform = (neutral ? source.Architecture : architecture) == native.String ? native : compatible,
@@ -159,7 +149,7 @@ static class Store
 
     static IEnumerable<Package> Filter(this IEnumerable<Package> source, string id)
     {
-        var items = source.Where(_ => !_.Framework);
+        var items = source.Where(_ => _.Main);
         var main = items.FirstOrDefault(_ => _.Platform.Architecture == native.Architecture) ?? items.FirstOrDefault(_ => _.Platform.Architecture == compatible.Architecture);
         var architecture = main.Platform.Architecture;
 
@@ -171,13 +161,13 @@ static class Store
 
         List<Package> list = [];
 
-        foreach (var item in source.Where(_ => _.Platform.Architecture == architecture && (!_.Framework || (set?.Contains(_.Identity[0]) ?? true))))
+        foreach (var item in source.Where(_ => _.Platform.Architecture == architecture && (_.Main || (set?.Contains(_.Identity[0]) ?? true))))
         {
             var blob = Parse(item.Blob);
 
-            if (!item.Framework && ((ulong.Parse(blob.Descendants("platform.minVersion").First().Value) >> 16) & 0xFFFF) > build) return [];
+            if (item.Main && ((ulong.Parse(blob.Descendants("platform.minVersion").First().Value) >> 16) & 0xFFFF) > build) return [];
 
-            var package = Manager.FindPackagesForUser(string.Empty, $"{item.Identity[0]}_{item.Identity[4]}").FirstOrDefault(_ => _.Id.Architecture == item.Platform.Architecture || !item.Framework);
+            var package = Manager.FindPackagesForUser(string.Empty, $"{item.Identity[0]}_{item.Identity[4]}").FirstOrDefault(_ => _.Id.Architecture == item.Platform.Architecture || item.Main);
             if (package is null || (package.SignatureKind == PackageSignatureKind.Store &&
                 new Version((
                     blob.Element("content.bundledPackages")?.Elements().Select(_ => _.Value.Split('_')).FirstOrDefault(_ => _[2] == item.Platform.String)
@@ -185,10 +175,10 @@ static class Store
                     blob.Element("content.packageId").Value.Split('_')
                 )[1])
                 > new Version(package.Id.Version.Major, package.Id.Version.Minor, package.Id.Version.Build, package.Id.Version.Revision))) list.Add(item);
-            else if (!item.Framework) return [];
+            else if (item.Main) return [];
         }
 
-        list.Sort((x, y) => x.Framework ? -1 : 1); return list;
+        list.Sort((x, y) => x.Main ? 1 : -1); return list;
     }
 
     static XElement LocalElement(this XElement source, string name) => source.Elements().Where(_ => _.Name.LocalName == name).FirstOrDefault();
