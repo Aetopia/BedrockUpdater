@@ -29,11 +29,16 @@ static class Store
 
     static (string SyncUpdates, string GetExtendedUpdateInfo2) _ = (default, Resources.Get<string>("GetExtendedUpdateInfo2.xml.gz"));
 
+    static readonly (string String, ProcessorArchitecture Architecture) platform = (
+        RuntimeInformation.OSArchitecture == Architecture.X64 ? "x64" : default,
+        RuntimeInformation.OSArchitecture == Architecture.X64 ? ProcessorArchitecture.X64 : ProcessorArchitecture.Unknown
+    );
+
     static readonly ulong build = (GetVersion() >> 16) & 0xFFFF;
 
-    static readonly string storeedgefd = $"https://storeedgefd.dsx.mp.microsoft.com/v9.0/products/{{0}}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop";
+    static readonly string storeedgefd = $"https://storeedgefd.dsx.mp.microsoft.com/v7.0/products/{{0}}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop";
 
-    static readonly string displaycatalog = $"https://displaycatalog.mp.microsoft.com/v7.0/products/{{0}}?languages=iv&market={GlobalizationPreferences.HomeGeographicRegion}";
+    static readonly string displaycatalog = $"https://displaycatalog.mp.microsoft.com/v6.0/products/{{0}}?languages=iv&market={GlobalizationPreferences.HomeGeographicRegion}";
 
     static readonly WebClient client = new() { BaseAddress = "https://fe3cr.delivery.mp.microsoft.com/ClientWebService/client.asmx/" };
 
@@ -41,7 +46,7 @@ static class Store
     {
         var payload = Get(string.Format(storeedgefd, _)).Element("Payload");
         var platforms = payload.Element("Platforms").Descendants().Select(_ => _.Value);
-        return platforms.Any(_ => _ == "x64") ? new()
+        return platforms.Any(_ => _.Equals(platform.String, StringComparison.OrdinalIgnoreCase)) ? new()
         {
             AppCategoryId = Parse(payload.Descendants("FulfillmentData").First().Value).Element("WuCategoryId").Value,
             Id = _,
@@ -69,8 +74,8 @@ static class Store
             var moniker = element.LocalDescendant("AppxMetadata").Attribute("PackageMoniker").Value;
             var substrings = moniker.Split('_');
 
-            var architecture = substrings[2];
-            if (architecture != "neutral" && architecture != "x64") continue;
+            var @string = substrings[2];
+            if (@string != "neutral" && @string != platform.String) continue;
 
             var identity = element.LocalDescendant("UpdateIdentity");
             var id = identity.Attribute("UpdateID").Value;
@@ -79,7 +84,7 @@ static class Store
             var blob = element.LocalDescendant("ApplicabilityBlob").Value;
 
             var key = $"{substrings[0]}_{substrings[4]}";
-            if (packages.TryGetValue(key, out var value) && value.Rank < rank) { value.FullName = moniker; value.Rank = rank; value.Id = id; value.Revision = revision; value.Blob = blob; }
+            if (packages.TryGetValue(key, out var value)) { if (value.Rank < rank) { value.FullName = moniker; value.Rank = rank; value.Id = id; value.Revision = revision; value.Blob = blob; } }
             else packages.Add(key, new()
             {
                 FullName = moniker,
@@ -90,7 +95,6 @@ static class Store
                 Revision = revision,
                 Blob = blob
             });
-            Console.WriteLine(packages[key].FullName);
         }
 
         return packages.Get(source.Id);
@@ -112,12 +116,11 @@ static class Store
             var blob = Parse(item.Value.Blob);
 
             if (item.Value.Main && ((ulong.Parse(blob.Descendants("platform.minVersion").First().Value) >> 16) & 0xFFFF) > build) return [];
-            Console.WriteLine(item.Value.FullName);
 
-            var package = Manager.FindPackagesForUser(string.Empty, item.Key).FirstOrDefault(_ => _.Id.Architecture == ProcessorArchitecture.X64 || item.Value.Main);
+            var package = Manager.FindPackagesForUser(string.Empty, item.Key).FirstOrDefault(_ => _.Id.Architecture == platform.Architecture || item.Value.Main);
             if (package is null || (package.SignatureKind == PackageSignatureKind.Store &&
                 new Version((
-                    blob.Element("content.bundledPackages")?.Elements().Select(_ => _.Value.Split('_')).FirstOrDefault(_ => _[2] == "x64")
+                    blob.Element("content.bundledPackages")?.Elements().Select(_ => _.Value.Split('_')).FirstOrDefault(_ => _[2] == platform.String)
                     ??
                     blob.Element("content.packageId").Value.Split('_')
                 )[1])
