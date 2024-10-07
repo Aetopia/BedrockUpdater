@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using Windows.Management.Deployment;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Json;
+using Windows.Storage.Search;
 
 sealed class Package
 {
@@ -20,7 +21,8 @@ sealed class Package
     internal bool Main;
     internal string Id;
     internal string Revision;
-    internal string Blob;
+    //  internal string Blob;
+    internal Version Version;
 }
 
 static class Store
@@ -48,7 +50,7 @@ static class Store
         var platforms = payload.Element("Platforms").Descendants().Select(_ => _.Value);
         return platforms.Any(_ => _.Equals(platform.String, StringComparison.OrdinalIgnoreCase)) ? new()
         {
-            AppCategoryId = Parse(payload.Descendants("FulfillmentData").First().Value).Element("WuCategoryId").Value,
+            AppCategoryId = Parse(payload.LocalDescendant("FulfillmentData").Value).Element("WuCategoryId").Value,
             Id = _,
         } : default;
     }).Where(_ => _.AppCategoryId is not null).Select(_ => _.Get());
@@ -81,10 +83,27 @@ static class Store
             var id = identity.Attribute("UpdateID").Value;
             var revision = identity.Attribute("RevisionNumber").Value;
             var rank = int.Parse(element.LocalDescendant("Properties").Attribute("PackageRank").Value);
-            var blob = element.LocalDescendant("ApplicabilityBlob").Value;
+
+            var blob = Parse(element.LocalDescendant("ApplicabilityBlob").Value);
+            if (((ulong.Parse(blob.LocalDescendant("platform.minVersion").Value) >> 16) & 0xFFFF) > build) continue;
+            Version _() => new((
+                blob.Element("content.bundledPackages")?.Elements().Select(_ => _.Value.Split('_')).FirstOrDefault(_ => _[2] == platform.String)
+                ??
+                blob.Element("content.packageId").Value.Split('_')
+            )[1]);
 
             var key = $"{substrings[0]}_{substrings[4]}";
-            if (packages.TryGetValue(key, out var value)) { if (value.Rank < rank) { value.FullName = moniker; value.Rank = rank; value.Id = id; value.Revision = revision; value.Blob = blob; } }
+            if (packages.TryGetValue(key, out var value))
+            {
+                if (value.Rank < rank)
+                {
+                    value.FullName = moniker;
+                    value.Rank = rank;
+                    value.Id = id;
+                    value.Revision = revision;
+                    value.Version = _();
+                }
+            }
             else packages.Add(key, new()
             {
                 FullName = moniker,
@@ -93,7 +112,7 @@ static class Store
                 Main = main,
                 Id = id,
                 Revision = revision,
-                Blob = blob
+                Version = _()
             });
         }
 
@@ -102,7 +121,7 @@ static class Store
 
     static string[] Get(this Dictionary<string, Package> source, string id)
     {
-        var main = source.First(_ => _.Value.Main);
+        var main = source.FirstOrDefault(_ => _.Value.Main); if (main.Value is null) return [];
         var set = Get(string.Format(displaycatalog, id))
         .Descendants("FrameworkDependencies")
         .FirstOrDefault(_ => _.Parent.Element("PackageFullName").Value == main.Value.FullName)?
@@ -113,18 +132,9 @@ static class Store
 
         foreach (var item in source.Where(_ => _.Value.Main || (set?.Contains(_.Value.Name) ?? true)))
         {
-            var blob = Parse(item.Value.Blob);
-
-            if (item.Value.Main && ((ulong.Parse(blob.Descendants("platform.minVersion").First().Value) >> 16) & 0xFFFF) > build) return [];
-
             var package = Manager.FindPackagesForUser(string.Empty, item.Key).FirstOrDefault(_ => _.Id.Architecture == platform.Architecture || item.Value.Main);
             if (package is null || (package.SignatureKind == PackageSignatureKind.Store &&
-                new Version((
-                    blob.Element("content.bundledPackages")?.Elements().Select(_ => _.Value.Split('_')).FirstOrDefault(_ => _[2] == platform.String)
-                    ??
-                    blob.Element("content.packageId").Value.Split('_')
-                )[1])
-                > new Version(package.Id.Version.Major, package.Id.Version.Minor, package.Id.Version.Build, package.Id.Version.Revision))) list.Add(item.Value);
+                item.Value.Version > new Version(package.Id.Version.Major, package.Id.Version.Minor, package.Id.Version.Build, package.Id.Version.Revision))) list.Add(item.Value);
             else if (item.Value.Main) return [];
         }
 
