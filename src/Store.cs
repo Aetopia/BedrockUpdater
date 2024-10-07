@@ -149,7 +149,11 @@ static class Store
 
     static XElement LocalDescendant(this XElement source, string name) => source.LocalDescendants(name).FirstOrDefault();
 
-    static XElement Parse(string value) { using var reader = JsonReaderWriterFactory.CreateJsonReader(Encoding.Unicode.GetBytes(value), XmlDictionaryReaderQuotas.Max); return XElement.Load(reader); }
+    static XElement Parse(string value)
+    {
+        using var reader = JsonReaderWriterFactory.CreateJsonReader(Encoding.Unicode.GetBytes(value), XmlDictionaryReaderQuotas.Max);
+        return XElement.Load(reader);
+    }
 
     static XElement Get(string address)
     {
