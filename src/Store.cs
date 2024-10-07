@@ -50,7 +50,7 @@ static class Store
 
     static string[] Get(this (string AppCategoryId, string Id) source)
     {
-        var root = Post(string.Format(_.SyncUpdates ??= string.Format(Resources.Get<String>("SyncUpdates.xml.gz"), Post(Resources.Get<String>("GetCookie.xml.gz"))
+        var root = Post(string.Format(_.SyncUpdates ??= string.Format(Resources.Get<string>("SyncUpdates.xml.gz"), Post(Resources.Get<string>("GetCookie.xml.gz"))
         .LocalDescendant("EncryptedData").Value, "{0}"), source.AppCategoryId), decode: true)
         .LocalDescendant("SyncUpdatesResult");
 
@@ -90,6 +90,7 @@ static class Store
                 Revision = revision,
                 Blob = blob
             });
+            Console.WriteLine(packages[key].FullName);
         }
 
         return packages.Get(source.Id);
