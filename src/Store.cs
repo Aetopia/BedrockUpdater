@@ -11,7 +11,6 @@ using System.Collections.Generic;
 using Windows.Management.Deployment;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Json;
-using Windows.Storage.Search;
 
 sealed class Package
 {
@@ -21,7 +20,6 @@ sealed class Package
     internal bool Main;
     internal string Id;
     internal string Revision;
-    //  internal string Blob;
     internal Version Version;
 }
 
