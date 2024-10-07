@@ -4,11 +4,13 @@ using System.Reflection;
 using System.Windows.Media;
 using System.IO.Compression;
 using System.Windows.Media.Imaging;
+using System.Runtime.CompilerServices;
 
 static class Resources
 {
     static readonly Assembly assembly = Assembly.GetExecutingAssembly();
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     unsafe static U _<T, U>(T _) => *(U*)&_;
 
     internal static T Get<T>(string name)
