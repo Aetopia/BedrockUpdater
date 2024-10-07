@@ -14,7 +14,7 @@ sealed class MainWindow : Window
 
     public MainWindow(bool preview)
     {
-        Icon = global::Resources.GetImageSource(".ico");
+        Icon = global::Resources.Get<ImageSource>(".ico");
         UseLayoutRounding = true;
         Title = "Bedrock Updater";
         ResizeMode = ResizeMode.NoResize;

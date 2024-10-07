@@ -12,20 +12,12 @@ using Windows.Management.Deployment;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Json;
 
-struct Product
-{
-    internal string Id;
-    internal string AppCategoryId;
-}
-
 sealed class Package
 {
     internal string FullName;
     internal string Name;
-    //  internal string FamilyName;
     internal int Rank;
     internal bool Main;
-    //  internal string[] Identity;
     internal string Id;
     internal string Revision;
     internal string Blob;
@@ -35,7 +27,7 @@ static class Store
 {
     internal static readonly PackageManager Manager = new();
 
-    static string data;
+    static (string SyncUpdates, string GetExtendedUpdateInfo2) _ = (default, Resources.Get<string>("GetExtendedUpdateInfo2.xml.gz"));
 
     static readonly ulong build = (GetVersion() >> 16) & 0xFFFF;
 
@@ -45,20 +37,20 @@ static class Store
 
     static readonly WebClient client = new() { BaseAddress = "https://fe3cr.delivery.mp.microsoft.com/ClientWebService/client.asmx/" };
 
-    internal static IEnumerable<string[]> Products(params string[] ids) => ids.Select(_ =>
+    internal static IEnumerable<string[]> Products(params string[] ids) => ids.Select<string, (string AppCategoryId, string Id)>(_ =>
     {
         var payload = Get(string.Format(storeedgefd, _)).Element("Payload");
         var platforms = payload.Element("Platforms").Descendants().Select(_ => _.Value);
-        return platforms.Any(_ => _ == "x64") ? new Product()
+        return platforms.Any(_ => _ == "x64") ? new()
         {
             AppCategoryId = Parse(payload.Descendants("FulfillmentData").First().Value).Element("WuCategoryId").Value,
             Id = _,
         } : default;
     }).Where(_ => _.AppCategoryId is not null).Select(_ => _.Get());
 
-    static string[] Get(this Product source)
+    static string[] Get(this (string AppCategoryId, string Id) source)
     {
-        var root = Post(string.Format(data ??= string.Format(Resources.GetString("SyncUpdates.xml.gz"), Post(Resources.GetString("GetCookie.xml.gz"))
+        var root = Post(string.Format(_.SyncUpdates ??= string.Format(Resources.Get<String>("SyncUpdates.xml.gz"), Post(Resources.Get<String>("GetCookie.xml.gz"))
         .LocalDescendant("EncryptedData").Value, "{0}"), source.AppCategoryId), decode: true)
         .LocalDescendant("SyncUpdatesResult");
 
@@ -133,7 +125,7 @@ static class Store
         }
 
         list.Sort((x, y) => x.Main ? 1 : -1); return list
-        .Select(_ => Post(string.Format(Resources.GetExtendedUpdateInfo2, _.Id, _.Revision), true)
+        .Select(_ => Post(string.Format(Store._.GetExtendedUpdateInfo2, _.Id, _.Revision), true)
         .LocalDescendants("Url")
         .First(_ => _.Value.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).Value)
         .ToArray();
