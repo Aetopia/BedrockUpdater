@@ -91,18 +91,7 @@ static class Store
             )[1]);
 
             var key = $"{substrings[0]}_{substrings[4]}";
-            if (packages.TryGetValue(key, out var value))
-            {
-                if (value.Rank < rank)
-                {
-                    value.FullName = moniker;
-                    value.Rank = rank;
-                    value.Id = id;
-                    value.Revision = revision;
-                    value.Version = _();
-                }
-            }
-            else packages.Add(key, new()
+            if (!packages.TryGetValue(key, out var value)) packages.Add(key, new()
             {
                 FullName = moniker,
                 Name = substrings[0],
@@ -112,6 +101,14 @@ static class Store
                 Revision = revision,
                 Version = _()
             });
+            else if (value.Rank < rank)
+            {
+                value.FullName = moniker;
+                value.Rank = rank;
+                value.Id = id;
+                value.Revision = revision;
+                value.Version = _();
+            }
         }
 
         return packages.Get(source.Id);
