@@ -46,7 +46,7 @@ static class Store
     {
         var payload = Get(string.Format(storeedgefd, _)).Element("Payload");
         var platforms = payload.Element("Platforms").Descendants().Select(_ => _.Value);
-        return platforms.Any(_ => _.Equals(platform.String, StringComparison.OrdinalIgnoreCase)) ? new()
+        return platforms.Any(_ => _ == platform.String) ? new()
         {
             AppCategoryId = Parse(payload.LocalDescendant("FulfillmentData").Value).Element("WuCategoryId").Value,
             Id = _,
