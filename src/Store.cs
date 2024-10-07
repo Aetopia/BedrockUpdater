@@ -97,7 +97,7 @@ static class Store
 
     static string[] Get(this Dictionary<string, Package> source, string id)
     {
-        var main = source.Where(_ => _.Value.Main).First();
+        var main = source.First(_ => _.Value.Main);
         var set = Get(string.Format(displaycatalog, id))
         .Descendants("FrameworkDependencies")
         .FirstOrDefault(_ => _.Parent.Element("PackageFullName").Value == main.Value.FullName)?
