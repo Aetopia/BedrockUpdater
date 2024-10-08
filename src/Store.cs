@@ -25,7 +25,7 @@ sealed class Package
 
 static class Store
 {
-    internal static readonly PackageManager Manager = new();
+    internal static readonly PackageManager PackageManager = new();
 
     static (string SyncUpdates, string GetExtendedUpdateInfo2) _ = (default, Resources.Get<string>("GetExtendedUpdateInfo2.xml.gz"));
 
@@ -36,9 +36,9 @@ static class Store
 
     static readonly ulong build = (GetVersion() >> 16) & 0xFFFF;
 
-    static readonly string storeedgefd = $"https://storeedgefd.dsx.mp.microsoft.com/v7.0/products/{{0}}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop";
+    static readonly string storeedgefd = $"https://storeedgefd.dsx.mp.microsoft.com/v9.0/products/{{0}}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop";
 
-    static readonly string displaycatalog = $"https://displaycatalog.mp.microsoft.com/v6.0/products/{{0}}?languages=iv&market={GlobalizationPreferences.HomeGeographicRegion}";
+    static readonly string displaycatalog = $"https://displaycatalog.mp.microsoft.com/v7.0/products/{{0}}?languages=iv&market={GlobalizationPreferences.HomeGeographicRegion}";
 
     static readonly WebClient client = new() { BaseAddress = "https://fe3cr.delivery.mp.microsoft.com/ClientWebService/client.asmx/" };
 
@@ -127,7 +127,7 @@ static class Store
 
         foreach (var item in source.Where(_ => _.Value.Main || (set?.Contains(_.Value.Name) ?? true)))
         {
-            var package = Manager.FindPackagesForUser(string.Empty, item.Key).FirstOrDefault(_ => _.Id.Architecture == platform.Architecture || item.Value.Main);
+            var package = PackageManager.FindPackagesForUser(string.Empty, item.Key).FirstOrDefault(_ => _.Id.Architecture == platform.Architecture || item.Value.Main);
             if (package is null || (package.SignatureKind == PackageSignatureKind.Store &&
                 item.Value.Version > new Version(package.Id.Version.Major, package.Id.Version.Minor, package.Id.Version.Build, package.Id.Version.Revision))) list.Add(item.Value);
             else if (item.Value.Main) return [];

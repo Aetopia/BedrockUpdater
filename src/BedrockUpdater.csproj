@@ -14,7 +14,7 @@
     <ApplicationManifest>Resources/.manifest</ApplicationManifest>
     <ApplicationIcon>Resources/.ico</ApplicationIcon>
 
-    <AssemblyVersion>2.1.0.1</AssemblyVersion>
+    <AssemblyVersion>2.1.1.0</AssemblyVersion>
     <AssemblyTitle>Bedrock Updater</AssemblyTitle>
     <Product>Bedrock Updater</Product>
     <Copyright>Copyright (C) 2024</Copyright>
@@ -42,6 +42,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Windows.SDK.Contracts" Version="10.0.17134.1000" />
+    <PackageReference Include="Microsoft.Windows.SDK.Contracts" Version="10.0.19041.2" />
   </ItemGroup>
 </Project>
