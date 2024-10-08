@@ -2,6 +2,7 @@ using System;
 using System.Windows;
 using Windows.Foundation;
 using System.Windows.Media;
+using System.Threading.Tasks;
 using System.Windows.Controls;
 using Windows.Management.Deployment;
 
@@ -46,7 +47,7 @@ sealed class MainWindow : Window
             foreach (var package in Store.PackageManager.FindPackagesForUserWithPackageTypes(string.Empty, PackageTypes.Framework)) _ = Store.PackageManager.RemovePackageAsync(package.Id.FullName);
         };
 
-        ContentRendered += async (sender, e) => await System.Threading.Tasks.Task.Run(() =>
+        ContentRendered += async (sender, e) => await Task.Run(() =>
         {
             AddPackageOptions options = new() { ForceAppShutdown = true };
             foreach (var array in Store.Products("9WZDNCRD1HKW", preview ? "9P5X4QVLC2XR" : "9NBLGGH2JHXJ"))
