@@ -45,7 +45,11 @@ sealed class MainWindow : Window
             IAsyncOperationWithProgress<DeploymentResult, DeploymentProgress> operation = default;
             Progress<DeploymentProgress> progress = new(_ => Dispatcher.Invoke(() =>
             {
-                if (bar.Value != _.percentage) { if (bar.IsIndeterminate) bar.IsIndeterminate = false; block2.Text = $"{_.state}... {bar.Value = _.percentage}%"; }
+                if (bar.Value != _.percentage)
+                {
+                    if (bar.IsIndeterminate && _.state == DeploymentProgressState.Processing) bar.IsIndeterminate = false;
+                    block2.Text = $"{_.state}... {bar.Value = _.percentage}%";
+                }
             }));
 
             AppDomain.CurrentDomain.ProcessExit += (sender, e) =>
