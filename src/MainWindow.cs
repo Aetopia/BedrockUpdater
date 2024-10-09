@@ -1,6 +1,4 @@
 using System;
-using System.IO;
-using System.Net;
 using System.Windows;
 using Windows.Foundation;
 using System.Windows.Media;
@@ -8,19 +6,13 @@ using System.Threading.Tasks;
 using System.Windows.Controls;
 using Windows.Management.Deployment;
 using System.Runtime.InteropServices;
-using System.Threading;
 using System.Windows.Interop;
-using System.ComponentModel;
+using System.Threading;
 
 sealed class MainWindow : Window
 {
-    enum Unit { B, KB, MB, GB }
-
     [DllImport("Shell32", CharSet = CharSet.Auto, SetLastError = true), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     static extern int ShellMessageBox(nint hAppInst = default, nint hWnd = default, string lpcText = default, string lpcTitle = "Bedrock Updater", int fuStyle = 0x00000010);
-
-    [DllImport("Kernel32", CharSet = CharSet.Auto, SetLastError = true), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    static extern bool DeleteFile(string lpFileName);
 
     public MainWindow(bool preview)
     {
@@ -53,29 +45,18 @@ sealed class MainWindow : Window
         };
         canvas.Children.Add(bar); Canvas.SetLeft(bar, 11); Canvas.SetTop(bar, 46);
 
-        using WebClient client = new();
-        string value = default;
-
-        client.DownloadProgressChanged += (_, e) => Dispatcher.Invoke(() =>
-        {
-            static string Value(double value) { var unit = (int)Math.Log(value, 1024); return $"{value / Math.Pow(1024, value):0.00} {(Unit)unit}"; }
-            if (bar.Value != e.ProgressPercentage) { block2.Text = $"Downloading... {Value(e.BytesReceived)} / {value ??= Value(e.TotalBytesToReceive)}"; bar.Value = e.ProgressPercentage; }
-        });
-
-        client.DownloadFileCompleted += (sender, e) => Dispatcher.Invoke(() => { value = default; bar.Value = 0; block2.Text = "Installing..."; });
-
-        Uri uri = default;
         IAsyncOperationWithProgress<DeploymentResult, DeploymentProgress> operation = default;
 
-        Application.Current.Exit += (_, e) =>
+        Application.Current.Exit += (sender, e) =>
         {
-            client.CancelAsync(); while (client.IsBusy) ;
-            if (operation is not null) { operation.Cancel(); while (operation.Status == AsyncStatus.Started) ; }
-            DeleteFile(uri?.AbsolutePath);
-            foreach (var package in Store.PackageManager.FindPackagesForUserWithPackageTypes(string.Empty, PackageTypes.Framework)) _ = Store.PackageManager.RemovePackageAsync(package.Id.FullName);
+            if (operation is not null)
+            {
+                operation.Cancel(); while (operation.Status == AsyncStatus.Started) Thread.Sleep(1);
+                foreach (var package in Store.PackageManager.FindPackagesForUserWithPackageTypes(string.Empty, PackageTypes.Framework)) _ = Store.PackageManager.RemovePackageAsync(package.Id.FullName);
+            };
         };
 
-        Application.Current.Dispatcher.UnhandledException += (_, e) =>
+        Application.Current.Dispatcher.UnhandledException += (sender, e) =>
         {
             e.Handled = true; var exception = e.Exception;
             while (exception.InnerException != null) exception = exception.InnerException;
@@ -85,24 +66,27 @@ sealed class MainWindow : Window
 
         ContentRendered += async (sender, e) => await Task.Run(() =>
         {
-            Progress<DeploymentProgress> progress = new(_ => Dispatcher.Invoke(() => { if (bar.Value != _.percentage) block2.Text = $"Installing... {bar.Value = _.percentage}%"; }));
+            AddPackageOptions options = new() { ForceAppShutdown = true };
+            Progress<DeploymentProgress> progress = new((_) => Dispatcher.Invoke(() =>
+            {
+                if (bar.Value != _.percentage && _.state == DeploymentProgressState.Processing)
+                {
+                    if (bar.IsIndeterminate) bar.IsIndeterminate = false;
+                    block2.Text = $"{_.state}... {bar.Value = _.percentage}%";
+                }
+            }));
             foreach (var array in Store.Get("9WZDNCRD1HKW", preview ? "9P5X4QVLC2XR" : "9NBLGGH2JHXJ"))
             {
-                Dispatcher.Invoke(() => bar.IsIndeterminate = array.Length == 0);
                 for (int index = 0; index < array.Length; index++)
                 {
                     Dispatcher.Invoke(() =>
                     {
                         block1.Text = array.Length != 1 ? $"{text} {index + 1} / {array.Length}" : text;
-                        block2.Text = "Downloading...";
+                        block2.Text = "Preparing...";
+                        bar.IsIndeterminate = true;
                         bar.Value = 0;
                     });
-                    try
-                    {
-                        client.DownloadFileTaskAsync(array[index], (uri = new(Path.GetTempFileName())).LocalPath).Wait();
-                        (operation = Store.PackageManager.AddPackageAsync(uri, null, DeploymentOptions.ForceApplicationShutdown)).AsTask(progress).Wait();
-                    }
-                    finally { DeleteFile(uri.LocalPath); }
+                    (operation = Store.PackageManager.AddPackageByUriAsync(new(array[index]), options)).AsTask(progress).Wait();
                 }
                 Dispatcher.Invoke(() => { block1.Text = text; block2.Text = "Preparing..."; bar.Value = 0; ; bar.IsIndeterminate = true; });
             }
