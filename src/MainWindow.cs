@@ -47,13 +47,10 @@ sealed class MainWindow : Window
 
         IAsyncOperationWithProgress<DeploymentResult, DeploymentProgress> operation = default;
 
-        Application.Current.Exit += (sender, e) =>
+        Application.Current.Exit += (_, _) =>
         {
-            if (operation is not null)
-            {
-                operation.Cancel(); while (operation.Status == AsyncStatus.Started) Thread.Sleep(1);
-                foreach (var package in Store.PackageManager.FindPackagesForUserWithPackageTypes(string.Empty, PackageTypes.Framework)) _ = Store.PackageManager.RemovePackageAsync(package.Id.FullName);
-            };
+            if (operation is not null) { operation.Cancel(); SpinWait.SpinUntil(() => operation.Status != AsyncStatus.Started); }
+            foreach (var package in Store.PackageManager.FindPackagesForUserWithPackageTypes(string.Empty, PackageTypes.Framework)) _ = Store.PackageManager.RemovePackageAsync(package.Id.FullName);
         };
 
         Application.Current.Dispatcher.UnhandledException += (sender, e) =>
