@@ -25,7 +25,7 @@ sealed class MainWindow : Window
         Background = new SolidColorBrush(Color.FromRgb(30, 30, 30));
         var text = preview ? "Updating Preview..." : "Updating Release...";
 
-        Canvas canvas = new() { Width = 381, Height = 115 }; Content = canvas;
+        Canvas canvas = new() { Width = 381, Height = 115 };  Content = canvas;
 
         TextBlock block1 = new() { Text = text, Foreground = Brushes.White };
         canvas.Children.Add(block1); Canvas.SetLeft(block1, 11); Canvas.SetTop(block1, 15);
@@ -52,7 +52,7 @@ sealed class MainWindow : Window
             foreach (var package in Store.PackageManager.FindPackagesForUserWithPackageTypes(string.Empty, PackageTypes.Framework)) _ = Store.PackageManager.RemovePackageAsync(package.Id.FullName);
         };
 
-        Application.Current.Dispatcher.UnhandledException += (sender, e) =>
+        Application.Current.Dispatcher.UnhandledException += (_, e) =>
         {
             e.Handled = true; var exception = e.Exception;
             while (exception.InnerException != null) exception = exception.InnerException;
@@ -60,7 +60,7 @@ sealed class MainWindow : Window
             Application.Current.Shutdown();
         };
 
-        ContentRendered += async (sender, e) => await Task.Run(() =>
+        ContentRendered += async (_, _) => await Task.Run(() =>
         {
             AddPackageOptions options = new() { ForceAppShutdown = true };
             Progress<DeploymentProgress> progress = new((_) => Dispatcher.Invoke(() =>
