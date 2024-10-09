@@ -48,7 +48,7 @@ static class Store
         )[1]);
     }
 
-    internal static IEnumerable<string[]> Get(params string[] ids) => ids.Select<string, (string AppCategoryId, string Id, Dictionary<string, HashSet<string>> Packages)>(_ =>
+    internal static IEnumerable<Lazy<Uri>[]> Get(params string[] ids) => ids.Select<string, (string AppCategoryId, string Id, Dictionary<string, HashSet<string>> Packages)>(_ =>
     {
         var json = Get(string.Format(address, _));
         Dictionary<string, HashSet<string>> packages = [];
@@ -56,13 +56,13 @@ static class Store
         foreach (var item in json.Descendants("FrameworkDependencies"))
         {
             var value = item.Parent.Element("PackageFullName").Value;
-            if (!packages.ContainsKey(value))packages.Add(value, item.Descendants("PackageIdentity").Select(_ => _.Value).ToHashSet());
+            if (!packages.ContainsKey(value)) packages.Add(value, item.Descendants("PackageIdentity").Select(_ => _.Value).ToHashSet());
         }
 
-        return (json.LocalDescendant("WuCategoryId").Value, _,packages);
+        return (json.LocalDescendant("WuCategoryId").Value, _, packages);
     }).Select(_ => _.Get());
 
-    static string[] Get(this (string AppCategoryId, string Id, Dictionary<string, HashSet<string>>Packages) source)
+    static Lazy<Uri>[] Get(this (string AppCategoryId, string Id, Dictionary<string, HashSet<string>> Packages) source)
     {
         var root = Post(string.Format(_.SyncUpdates ??= string.Format(Resources.Get<string>("SyncUpdates.xml.gz"), Post(Resources.Get<string>("GetCookie.xml.gz"))
         .LocalDescendant("EncryptedData").Value, "{0}"), source.AppCategoryId), decode: true)
@@ -115,7 +115,7 @@ static class Store
         return packages.Get(source.Packages);
     }
 
-    static string[] Get(this Dictionary<string, Package> source, Dictionary<string, HashSet<string>> packages)
+    static Lazy<Uri>[] Get(this Dictionary<string, Package> source, Dictionary<string, HashSet<string>> packages)
     {
         var main = source.FirstOrDefault(_ => _.Value.Main); if (main.Value is null) return [];
         packages.TryGetValue(main.Value.FullName, out var set);
@@ -130,10 +130,8 @@ static class Store
             else if (item.Value.Main) return [];
         }
 
-        list.Sort((x, y) => x.Main ? 1 : -1); return list
-        .Select(_ => Post(string.Format(Store._.GetExtendedUpdateInfo2, _.Id, _.Revision), true)
-        .LocalDescendants("Url")
-        .First(_ => _.Value.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).Value)
+        list.Sort((x, y) => x.Main ? 1 : -1); return list.Select(_ => new Lazy<Uri>(() => new(Post(string.Format(Store._.GetExtendedUpdateInfo2, _.Id, _.Revision), true)
+        .LocalDescendants("Url").First(_ => _.Value.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).Value)))
         .ToArray();
     }
 

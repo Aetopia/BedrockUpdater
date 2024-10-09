@@ -65,24 +65,14 @@ sealed class MainWindow : Window
             AddPackageOptions options = new() { ForceAppShutdown = true };
             Progress<DeploymentProgress> progress = new((_) => Dispatcher.Invoke(() =>
             {
-                if (bar.Value != _.percentage && _.state == DeploymentProgressState.Processing)
-                {
-                    if (bar.IsIndeterminate) bar.IsIndeterminate = false;
-                    block2.Text = $"{_.state}... {bar.Value = _.percentage}%";
-                }
+                if (bar.Value != _.percentage && _.state == DeploymentProgressState.Processing) { if (bar.IsIndeterminate) bar.IsIndeterminate = false; block2.Text = $"{_.state}... {bar.Value = _.percentage}%"; }
             }));
             foreach (var array in Store.Get("9WZDNCRD1HKW", preview ? "9P5X4QVLC2XR" : "9NBLGGH2JHXJ"))
             {
                 for (int index = 0; index < array.Length; index++)
                 {
-                    Dispatcher.Invoke(() =>
-                    {
-                        block1.Text = array.Length != 1 ? $"{text} {index + 1} / {array.Length}" : text;
-                        block2.Text = "Preparing...";
-                        bar.IsIndeterminate = true;
-                        bar.Value = 0;
-                    });
-                    (operation = Store.PackageManager.AddPackageByUriAsync(new(array[index]), options)).AsTask(progress).Wait();
+                    Dispatcher.Invoke(() => { block1.Text = $"{text} {index + 1} / {array.Length}"; block2.Text = "Preparing..."; bar.IsIndeterminate = true; bar.Value = 0; });
+                    (operation = Store.PackageManager.AddPackageByUriAsync(array[index].Value, options)).AsTask(progress).Wait();
                 }
                 Dispatcher.Invoke(() => { block1.Text = text; block2.Text = "Preparing..."; bar.Value = 0; ; bar.IsIndeterminate = true; });
             }
