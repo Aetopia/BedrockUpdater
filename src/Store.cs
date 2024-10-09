@@ -34,7 +34,7 @@ static class Store
         RuntimeInformation.OSArchitecture == Architecture.X64 ? ProcessorArchitecture.X64 : ProcessorArchitecture.Unknown
     );
 
-    static readonly string address = $"https://displaycatalog.mp.microsoft.com/v7.0/products/{{0}}?languages=iv&market={GlobalizationPreferences.HomeGeographicRegion}";
+    static readonly string address = $"https://displaycatalog.mp.microsoft.com/v7.0/products/{{0}}?languages=NEUTRAL&market={GlobalizationPreferences.HomeGeographicRegion}";
 
     static readonly WebClient client = new() { BaseAddress = "https://fe3cr.delivery.mp.microsoft.com/ClientWebService/client.asmx/" };
 
