@@ -43,7 +43,7 @@ static class Store
         var json = Parse(element.LocalDescendant("ApplicabilityBlob").Value);
         return new((
             json.Element("content.bundledPackages")?.Elements().Select(_ => _.Value.Split('_')).FirstOrDefault(_ => _[2] == platform.String)
-            ?? 
+            ??
             json.Element("content.packageId").Value.Split('_')
         )[1]);
     }
