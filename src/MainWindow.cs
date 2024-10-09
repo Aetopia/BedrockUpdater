@@ -43,7 +43,7 @@ sealed class MainWindow : Window
 
         AppDomain.CurrentDomain.ProcessExit += (sender, e) =>
         {
-            operation?.Cancel();
+            if (operation is not null) { operation.Cancel(); while (operation.Status == AsyncStatus.Started) ; }
             foreach (var package in Store.PackageManager.FindPackagesForUserWithPackageTypes(string.Empty, PackageTypes.Framework)) _ = Store.PackageManager.RemovePackageAsync(package.Id.FullName);
         };
 
@@ -62,16 +62,10 @@ sealed class MainWindow : Window
                         bar.Value = 0;
                     });
 
-                    operation = Store.PackageManager.AddPackageByUriAsync(new(array[index]), options);
-                    operation.Progress += (sender, e) => Dispatcher.Invoke(() =>
+                    Store.PackageManager.AddPackageByUriAsync(new(array[index]), options).AsTask(new Progress<DeploymentProgress>(_ => Dispatcher.Invoke(() =>
                     {
-                        if (bar.Value != e.percentage)
-                        {
-                            if (bar.IsIndeterminate) bar.IsIndeterminate = false;
-                            block2.Text = $"{e.state}... {bar.Value = e.percentage}%";
-                        }
-                    });
-                    operation.AsTask().Wait();
+                        if (bar.Value != _.percentage) { if (bar.IsIndeterminate) bar.IsIndeterminate = false; block2.Text = $"{_.state}... {bar.Value = _.percentage}%"; }
+                    }))).Wait();
                 }
                 Dispatcher.Invoke(() => { block1.Text = text; block2.Text = "Preparing..."; bar.Value = 0; ; bar.IsIndeterminate = true; });
             }
