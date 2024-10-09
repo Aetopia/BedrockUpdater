@@ -6,7 +6,6 @@ using System.Globalization;
 
 static class Program
 {
-
     [STAThread]
     static void Main(string[] args)
     {
