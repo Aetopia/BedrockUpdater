@@ -34,26 +34,35 @@ static class Store
         RuntimeInformation.OSArchitecture == Architecture.X64 ? ProcessorArchitecture.X64 : ProcessorArchitecture.Unknown
     );
 
-    static readonly ulong build = (GetVersion() >> 16) & 0xFFFF;
-
-    static readonly string storeedgefd = $"https://storeedgefd.dsx.mp.microsoft.com/v9.0/products/{{0}}?market={GlobalizationPreferences.HomeGeographicRegion}&locale=iv&deviceFamily=Windows.Desktop";
-
-    static readonly string displaycatalog = $"https://displaycatalog.mp.microsoft.com/v7.0/products/{{0}}?languages=iv&market={GlobalizationPreferences.HomeGeographicRegion}";
+    static readonly string address = $"https://displaycatalog.mp.microsoft.com/v7.0/products/{{0}}?languages=iv&market={GlobalizationPreferences.HomeGeographicRegion}";
 
     static readonly WebClient client = new() { BaseAddress = "https://fe3cr.delivery.mp.microsoft.com/ClientWebService/client.asmx/" };
 
-    internal static IEnumerable<string[]> Products(params string[] ids) => ids.Select<string, (string AppCategoryId, string Id)>(_ =>
+    static Version Version(XElement element)
     {
-        var payload = Get(string.Format(storeedgefd, _)).Element("Payload");
-        var platforms = payload.Element("Platforms").Descendants().Select(_ => _.Value);
-        return platforms.Any(_ => _ == platform.String) ? new()
-        {
-            AppCategoryId = Parse(payload.LocalDescendant("FulfillmentData").Value).Element("WuCategoryId").Value,
-            Id = _,
-        } : default;
-    }).Where(_ => _.AppCategoryId is not null).Select(_ => _.Get());
+        var json = Parse(element.LocalDescendant("ApplicabilityBlob").Value);
+        return new((
+            json.Element("content.bundledPackages")?.Elements().Select(_ => _.Value.Split('_')).FirstOrDefault(_ => _[2] == platform.String)
+            ?? 
+            json.Element("content.packageId").Value.Split('_')
+        )[1]);
+    }
 
-    static string[] Get(this (string AppCategoryId, string Id) source)
+    internal static IEnumerable<string[]> Get(params string[] ids) => ids.Select<string, (string AppCategoryId, string Id, Dictionary<string, HashSet<string>> Dependencies)>(_ =>
+    {
+        var json = Get(string.Format(address, _));
+        Dictionary<string, HashSet<string>> dependencies = [];
+
+        foreach (var item in json.Descendants("FrameworkDependencies"))
+        {
+            var value = item.Parent.Element("PackageFullName").Value;
+            if (!dependencies.ContainsKey(value)) dependencies.Add(value, item.Descendants("PackageIdentity").Select(_ => _.Value).ToHashSet());
+        }
+
+        return (json.LocalDescendant("WuCategoryId").Value, _, dependencies);
+    }).Select(_ => _.Get());
+
+    static string[] Get(this (string AppCategoryId, string Id, Dictionary<string, HashSet<string>> Dependencies) source)
     {
         var root = Post(string.Format(_.SyncUpdates ??= string.Format(Resources.Get<string>("SyncUpdates.xml.gz"), Post(Resources.Get<string>("GetCookie.xml.gz"))
         .LocalDescendant("EncryptedData").Value, "{0}"), source.AppCategoryId), decode: true)
@@ -82,14 +91,6 @@ static class Store
             var revision = identity.Attribute("RevisionNumber").Value;
             var rank = int.Parse(element.LocalDescendant("Properties").Attribute("PackageRank").Value);
 
-            var blob = Parse(element.LocalDescendant("ApplicabilityBlob").Value);
-            if (((ulong.Parse(blob.LocalDescendant("platform.minVersion").Value) >> 16) & 0xFFFF) > build) continue;
-            Version _() => new((
-                blob.Element("content.bundledPackages")?.Elements().Select(_ => _.Value.Split('_')).FirstOrDefault(_ => _[2] == platform.String)
-                ??
-                blob.Element("content.packageId").Value.Split('_')
-            )[1]);
-
             var key = $"{substrings[0]}_{substrings[4]}";
             if (!packages.TryGetValue(key, out var value)) packages.Add(key, new()
             {
@@ -99,7 +100,7 @@ static class Store
                 Main = main,
                 Id = id,
                 Revision = revision,
-                Version = _()
+                Version = Version(element)
             });
             else if (value.Rank < rank)
             {
@@ -107,21 +108,17 @@ static class Store
                 value.Rank = rank;
                 value.Id = id;
                 value.Revision = revision;
-                value.Version = _();
+                value.Version = Version(element);
             }
         }
 
-        return packages.Get(source.Id);
+        return packages.Get(source.Dependencies);
     }
 
-    static string[] Get(this Dictionary<string, Package> source, string id)
+    static string[] Get(this Dictionary<string, Package> source, Dictionary<string, HashSet<string>> dependencies)
     {
         var main = source.FirstOrDefault(_ => _.Value.Main); if (main.Value is null) return [];
-        var set = Get(string.Format(displaycatalog, id))
-        .Descendants("FrameworkDependencies")
-        .FirstOrDefault(_ => _.Parent.Element("PackageFullName").Value == main.Value.FullName)?
-        .Descendants("PackageIdentity")
-        .Select(_ => _.Value).ToHashSet();
+        dependencies.TryGetValue(main.Value.FullName, out var set);
 
         List<Package> list = [];
 
@@ -165,7 +162,4 @@ static class Store
         var value = client.UploadString(secured ? "secured" : string.Empty, data);
         return XElement.Parse(decode ? WebUtility.HtmlDecode(value) : value);
     }
-
-    [DllImport("Kernel32"), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    static extern ulong GetVersion();
 }

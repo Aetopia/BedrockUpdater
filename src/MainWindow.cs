@@ -50,7 +50,7 @@ sealed class MainWindow : Window
         ContentRendered += async (sender, e) => await Task.Run(() =>
         {
             AddPackageOptions options = new() { ForceAppShutdown = true };
-            foreach (var array in Store.Products("9WZDNCRD1HKW", preview ? "9P5X4QVLC2XR" : "9NBLGGH2JHXJ"))
+            foreach (var array in Store.Get("9WZDNCRD1HKW", preview ? "9P5X4QVLC2XR" : "9NBLGGH2JHXJ"))
             {
                 for (int index = 0; index < array.Length; index++)
                 {
