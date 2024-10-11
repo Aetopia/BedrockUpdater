@@ -14,7 +14,7 @@ sealed class MainWindow : Window
     [DllImport("Shell32", CharSet = CharSet.Auto, SetLastError = true), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     static extern int ShellMessageBox(nint hAppInst = default, nint hWnd = default, string lpcText = default, string lpcTitle = "Bedrock Updater", int fuStyle = 0x00000010);
 
-    public MainWindow(bool preview)
+    public MainWindow(bool _)
     {
         Icon = global::Resources.Get<ImageSource>(".ico");
         UseLayoutRounding = true;
@@ -23,7 +23,7 @@ sealed class MainWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         SizeToContent = SizeToContent.WidthAndHeight;
         Background = new SolidColorBrush(Color.FromRgb(30, 30, 30));
-        var text = preview ? "Updating Preview..." : "Updating Release...";
+        var text = _ ? "Updating Preview..." : "Updating Release...";
 
         Canvas canvas = new() { Width = 381, Height = 115 }; Content = canvas;
 
@@ -49,7 +49,7 @@ sealed class MainWindow : Window
         Application.Current.Exit += (_, _) =>
         {
             if (operation is not null) { operation.Cancel(); SpinWait.SpinUntil(() => operation.Status != AsyncStatus.Started); }
-            foreach (var package in Store.PackageManager.FindPackagesForUserWithPackageTypes(string.Empty, PackageTypes.Framework)) _ = Store.PackageManager.RemovePackageAsync(package.Id.FullName);
+            foreach (var package in Store.PackageManager.FindPackagesForUserWithPackageTypes(string.Empty, PackageTypes.Framework)) Store.PackageManager.RemovePackageAsync(package.Id.FullName);
         };
 
         Application.Current.Dispatcher.UnhandledException += (_, e) =>
@@ -67,7 +67,7 @@ sealed class MainWindow : Window
             {
                 if (bar.Value != _.percentage && _.state == DeploymentProgressState.Processing) { if (bar.IsIndeterminate) bar.IsIndeterminate = false; block2.Text = $"Preparing... {bar.Value = _.percentage}%"; }
             }));
-            foreach (var array in Store.Get("9WZDNCRD1HKW", preview ? "9P5X4QVLC2XR" : "9NBLGGH2JHXJ"))
+            foreach (var array in Store.Get("9WZDNCRD1HKW", _ ? "9P5X4QVLC2XR" : "9NBLGGH2JHXJ"))
             {
                 for (int index = 0; index < array.Length; index++)
                 {
