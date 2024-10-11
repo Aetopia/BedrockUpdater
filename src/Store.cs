@@ -34,7 +34,7 @@ static class Store
         RuntimeInformation.OSArchitecture == Architecture.X64 ? ProcessorArchitecture.X64 : ProcessorArchitecture.Unknown
     );
 
-    static readonly string address = $"https://displaycatalog.mp.microsoft.com/v7.0/products/{{0}}?languages=NEUTRAL&market={GlobalizationPreferences.HomeGeographicRegion}";
+    static readonly string address = $"https://displaycatalog.mp.microsoft.com/v7.0/products/{{0}}?languages=iv&market={GlobalizationPreferences.HomeGeographicRegion}";
 
     static readonly WebClient client = new() { BaseAddress = "https://fe3cr.delivery.mp.microsoft.com/ClientWebService/client.asmx/" };
 
@@ -51,8 +51,8 @@ static class Store
     internal static IEnumerable<Lazy<Uri>[]> Get(params string[] ids) => ids.Select<string, (string AppCategoryId, string Id, Dictionary<string, HashSet<string>> Packages)>(_ =>
     {
         var json = Get(string.Format(address, _));
-        Dictionary<string, HashSet<string>> packages = [];
 
+        Dictionary<string, HashSet<string>> packages = [];
         foreach (var item in json.Descendants("FrameworkDependencies"))
         {
             var value = item.Parent.Element("PackageFullName").Value;
