@@ -9,17 +9,12 @@ static class Resources
 {
     static readonly Assembly assembly = Assembly.GetExecutingAssembly();
 
-    unsafe static U _<T, U>(T _) => *(U*)&_;
-
     internal static T Get<T>(string name)
     {
-        using var stream = assembly.GetManifestResourceStream(name);
-        switch (typeof(T))
+        using var stream = assembly.GetManifestResourceStream(name); switch (typeof(T))
         {
-            case var @_ when _ == typeof(string): using (StreamReader reader = new(new GZipStream(stream, CompressionMode.Decompress))) return _<string, T>(reader.ReadToEnd());
-
-            case var @_ when _ == typeof(ImageSource): return _<ImageSource, T>(BitmapFrame.Create(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad));
-
+            case var @_ when _ == typeof(string): using (StreamReader reader = new(new GZipStream(stream, CompressionMode.Decompress))) return (T)(object)reader.ReadToEnd();
+            case var @_ when _ == typeof(ImageSource): return (T)(object)BitmapFrame.Create(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
             default: throw new TypeAccessException();
         }
     }

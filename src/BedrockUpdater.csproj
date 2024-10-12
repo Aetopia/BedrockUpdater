@@ -8,13 +8,12 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <PublishRelease>true</PublishRelease>
     <PlatformTarget>x64</PlatformTarget>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <NoWarn>CS8500,CS4014</NoWarn>
+    <NoWarn>CS4014</NoWarn>
 
     <ApplicationManifest>Resources/.manifest</ApplicationManifest>
     <ApplicationIcon>Resources/.ico</ApplicationIcon>
 
-    <AssemblyVersion>2.2.1.0</AssemblyVersion>
+    <AssemblyVersion>2.2.2.0</AssemblyVersion>
     <AssemblyTitle>Bedrock Updater</AssemblyTitle>
     <Product>Bedrock Updater</Product>
     <Copyright>Copyright (C) 2024</Copyright>

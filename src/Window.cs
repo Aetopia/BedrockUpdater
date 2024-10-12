@@ -1,6 +1,5 @@
 using System;
 using System.Windows;
-using System.Threading;
 using Windows.Foundation;
 using System.Windows.Media;
 using System.Windows.Interop;
@@ -8,13 +7,14 @@ using System.Threading.Tasks;
 using System.Windows.Controls;
 using Windows.Management.Deployment;
 using System.Runtime.InteropServices;
+using System.Threading;
 
-sealed class MainWindow : Window
+sealed class Window : System.Windows.Window
 {
     [DllImport("Shell32", CharSet = CharSet.Auto, SetLastError = true), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     static extern int ShellMessageBox(nint hAppInst = default, nint hWnd = default, string lpcText = default, string lpcTitle = "Bedrock Updater", int fuStyle = 0x00000010);
 
-    public MainWindow(bool _)
+    public Window(bool _)
     {
         Icon = global::Resources.Get<ImageSource>(".ico");
         UseLayoutRounding = true;
@@ -44,20 +44,21 @@ sealed class MainWindow : Window
         };
         canvas.Children.Add(bar); Canvas.SetLeft(bar, 11); Canvas.SetTop(bar, 46);
 
+        Task<DeploymentResult> task = default;
         IAsyncOperationWithProgress<DeploymentResult, DeploymentProgress> operation = default;
 
-        Application.Current.Exit += (_, _) =>
+        Closed += (_, _) =>
         {
-            if (operation is not null) { operation.Cancel(); SpinWait.SpinUntil(() => operation.Status != AsyncStatus.Started); }
+            if (operation is not null) using (var handle = ((IAsyncResult)task).AsyncWaitHandle) { operation.Cancel(); handle.WaitOne(); }
             foreach (var package in Store.PackageManager.FindPackagesForUserWithPackageTypes(string.Empty, PackageTypes.Framework)) Store.PackageManager.RemovePackageAsync(package.Id.FullName);
         };
 
-        Application.Current.Dispatcher.UnhandledException += (_, e) =>
+        Dispatcher.UnhandledException += (_, e) =>
         {
             e.Handled = true; var exception = e.Exception;
-            while (exception.InnerException != null) exception = exception.InnerException;
+            while (exception.InnerException is null) exception = exception.InnerException;
             ShellMessageBox(hWnd: new WindowInteropHelper(this).Handle, lpcText: exception.Message);
-            Application.Current.Shutdown();
+            Close();
         };
 
         ContentRendered += async (_, _) => await Task.Run(() =>
@@ -72,7 +73,7 @@ sealed class MainWindow : Window
                 for (int index = 0; index < array.Length; index++)
                 {
                     Dispatcher.Invoke(() => { block1.Text = $"{text} {index + 1} / {array.Length}"; block2.Text = "Preparing..."; bar.IsIndeterminate = true; bar.Value = 0; });
-                    (operation = Store.PackageManager.AddPackageByUriAsync(array[index].Value, options)).AsTask(progress).Wait();
+                    (task = (operation = Store.PackageManager.AddPackageByUriAsync(array[index].Value, options)).AsTask(progress)).Wait();
                 }
                 Dispatcher.Invoke(() => { block1.Text = text; block2.Text = "Preparing..."; bar.Value = 0; ; bar.IsIndeterminate = true; });
             }

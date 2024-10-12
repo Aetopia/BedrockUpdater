@@ -14,8 +14,8 @@ using System.Runtime.Serialization.Json;
 
 sealed class Package
 {
-    internal string FullName;
     internal string Name;
+    internal string Identity;
     internal int Rank;
     internal bool Main;
     internal string Id;
@@ -30,8 +30,8 @@ static class Store
     static (string SyncUpdates, string GetExtendedUpdateInfo2) _ = (default, Resources.Get<string>("GetExtendedUpdateInfo2.xml.gz"));
 
     static readonly (string String, ProcessorArchitecture Architecture) platform = (
-        RuntimeInformation.OSArchitecture == Architecture.X64 ? "x64" : default,
-        RuntimeInformation.OSArchitecture == Architecture.X64 ? ProcessorArchitecture.X64 : ProcessorArchitecture.Unknown
+        RuntimeInformation.OSArchitecture is Architecture.X64 ? "x64" : default,
+        RuntimeInformation.OSArchitecture is Architecture.X64 ? ProcessorArchitecture.X64 : ProcessorArchitecture.Unknown
     );
 
     static readonly string address = $"https://displaycatalog.mp.microsoft.com/v7.0/products/{{0}}?languages=iv&market={GlobalizationPreferences.HomeGeographicRegion}";
@@ -51,51 +51,41 @@ static class Store
     internal static IEnumerable<Lazy<Uri>[]> Get(params string[] ids) => ids.Select<string, (string AppCategoryId, string Id, Dictionary<string, HashSet<string>> Packages)>(_ =>
     {
         var json = Get(string.Format(address, _));
-
         Dictionary<string, HashSet<string>> packages = [];
         foreach (var item in json.Descendants("FrameworkDependencies"))
         {
             var value = item.Parent.Element("PackageFullName").Value;
             if (!packages.ContainsKey(value)) packages.Add(value, item.Descendants("PackageIdentity").Select(_ => _.Value).ToHashSet());
         }
-
         return (json.LocalDescendant("WuCategoryId").Value, _, packages);
     }).Select(_ => _.Get());
 
     static Lazy<Uri>[] Get(this (string AppCategoryId, string Id, Dictionary<string, HashSet<string>> Packages) source)
     {
         var root = Post(string.Format(_.SyncUpdates ??= string.Format(Resources.Get<string>("SyncUpdates.xml.gz"), Post(Resources.Get<string>("GetCookie.xml.gz"))
-        .LocalDescendant("EncryptedData").Value, "{0}"), source.AppCategoryId), decode: true)
-        .LocalDescendant("SyncUpdatesResult");
+        .LocalDescendant("EncryptedData").Value, "{0}"), source.AppCategoryId), decode: true).LocalDescendant("SyncUpdatesResult");
 
         var dictionary = root.LocalDescendants("AppxPackageInstallData").Where(_ =>
         {
-            var attribute = _.Attribute("PackageFileName").Value;
-            return attribute[attribute.LastIndexOf('.') + 1] != 'e';
+            var attribute = _.Attribute("PackageFileName").Value; return attribute[attribute.LastIndexOf('.') + 1] != 'e';
         }).ToDictionary(_ => _.Parent.Parent.Parent.LocalElement("ID").Value, _ => _.Attribute("MainPackage").Value == "true");
 
         Dictionary<string, Package> packages = [];
-
         foreach (var element in root.LocalDescendants("UpdateInfo"))
         {
             if (!dictionary.TryGetValue(element.LocalElement("ID").Value, out var main)) continue;
 
-            var moniker = element.LocalDescendant("AppxMetadata").Attribute("PackageMoniker").Value;
-            var substrings = moniker.Split('_');
-
-            var @string = substrings[2];
-            if (@string != "neutral" && @string != platform.String) continue;
-
+            var moniker = element.LocalDescendant("AppxMetadata").Attribute("PackageMoniker").Value; var substrings = moniker.Split('_');
+            var @string = substrings[2]; if (@string is not "neutral" && @string != platform.String) continue;
             var identity = element.LocalDescendant("UpdateIdentity");
-            var id = identity.Attribute("UpdateID").Value;
-            var revision = identity.Attribute("RevisionNumber").Value;
+            var id = identity.Attribute("UpdateID").Value; var revision = identity.Attribute("RevisionNumber").Value;
             var rank = int.Parse(element.LocalDescendant("Properties").Attribute("PackageRank").Value);
 
             var key = $"{substrings[0]}_{substrings[4]}";
             if (!packages.TryGetValue(key, out var value)) packages.Add(key, new()
             {
-                FullName = moniker,
-                Name = substrings[0],
+                Name = moniker,
+                Identity = substrings[0],
                 Rank = rank,
                 Main = main,
                 Id = id,
@@ -104,32 +94,29 @@ static class Store
             });
             else if (value.Rank < rank)
             {
-                value.FullName = moniker;
+                value.Name = moniker;
                 value.Rank = rank;
                 value.Id = id;
                 value.Revision = revision;
                 value.Version = Version(element);
             }
         }
-
         return packages.Get(source.Packages);
     }
 
     static Lazy<Uri>[] Get(this Dictionary<string, Package> source, Dictionary<string, HashSet<string>> packages)
     {
         var main = source.FirstOrDefault(_ => _.Value.Main); if (main.Value is null) return [];
-        packages.TryGetValue(main.Value.FullName, out var set);
+        packages.TryGetValue(main.Value.Name, out var set);
 
         List<Package> list = [];
-
-        foreach (var item in source.Where(_ => _.Value.Main || (set?.Contains(_.Value.Name) ?? true)))
+        foreach (var item in source.Where(_ => _.Value.Main || (set?.Contains(_.Value.Identity) ?? true)))
         {
             var package = PackageManager.FindPackagesForUser(string.Empty, item.Key).FirstOrDefault(_ => _.Id.Architecture == platform.Architecture || item.Value.Main);
-            if (package is null || (package.SignatureKind == PackageSignatureKind.Store &&
+            if (package is null || (package.SignatureKind is PackageSignatureKind.Store &&
                 item.Value.Version > new Version(package.Id.Version.Major, package.Id.Version.Minor, package.Id.Version.Build, package.Id.Version.Revision))) list.Add(item.Value);
             else if (item.Value.Main) return [];
         }
-
         list.Sort((x, y) => x.Main ? 1 : -1); return list.Select(_ => new Lazy<Uri>(() => new(Post(string.Format(Store._.GetExtendedUpdateInfo2, _.Id, _.Revision), true)
         .LocalDescendants("Url").First(_ => _.Value.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).Value)))
         .ToArray();
