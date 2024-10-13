@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using System.Windows.Controls;
 using Windows.Management.Deployment;
 using System.Runtime.InteropServices;
-using System.Threading;
 
 sealed class Window : System.Windows.Window
 {

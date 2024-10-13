@@ -40,7 +40,8 @@ static class Store
 
     static Version Version(XElement element)
     {
-        var json = Parse(element.LocalDescendant("ApplicabilityBlob").Value);
+        using var reader = JsonReaderWriterFactory.CreateJsonReader(Encoding.Unicode.GetBytes(element.LocalDescendant("ApplicabilityBlob").Value), XmlDictionaryReaderQuotas.Max);
+        var json = XElement.Load(reader);
         return new((
             json.Element("content.bundledPackages")?.Elements().Select(_ => _.Value.Split('_')).FirstOrDefault(_ => _[2] == platform.String)
             ??
@@ -48,9 +49,10 @@ static class Store
         )[1]);
     }
 
-    internal static IEnumerable<Lazy<Uri>[]> Get(params string[] ids) => ids.Select<string, (string AppCategoryId, string Id, Dictionary<string, HashSet<string>> Packages)>(_ =>
+    internal static IEnumerable<Lazy<Uri>[]> Get(params string[] source) => source.Select<string, (string AppCategoryId, string Id, Dictionary<string, HashSet<string>> Packages)>(_ =>
     {
-        var json = Get(string.Format(address, _));
+        using var stream = client.OpenRead(string.Format(address, _)); using var reader = JsonReaderWriterFactory.CreateJsonReader(stream, XmlDictionaryReaderQuotas.Max);
+        var json = XElement.Load(reader);
         Dictionary<string, HashSet<string>> packages = [];
         foreach (var item in json.Descendants("FrameworkDependencies"))
         {
@@ -127,19 +129,6 @@ static class Store
     static IEnumerable<XElement> LocalDescendants(this XElement source, string name) => source.Descendants().Where(_ => _.Name.LocalName == name);
 
     static XElement LocalDescendant(this XElement source, string name) => source.LocalDescendants(name).FirstOrDefault();
-
-    static XElement Parse(string value)
-    {
-        using var reader = JsonReaderWriterFactory.CreateJsonReader(Encoding.Unicode.GetBytes(value), XmlDictionaryReaderQuotas.Max);
-        return XElement.Load(reader);
-    }
-
-    static XElement Get(string address)
-    {
-        using var stream = client.OpenRead(address);
-        using var reader = JsonReaderWriterFactory.CreateJsonReader(stream, XmlDictionaryReaderQuotas.Max);
-        return XElement.Load(reader);
-    }
 
     static XElement Post(string data, bool secured = false, bool decode = false)
     {
