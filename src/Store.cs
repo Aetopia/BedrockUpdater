@@ -35,18 +35,16 @@ static class Store
     static Version Version(XElement element)
     {
         using var reader = JsonReaderWriterFactory.CreateJsonReader(Encoding.Unicode.GetBytes(element.LocalDescendants("ApplicabilityBlob").First().Value), XmlDictionaryReaderQuotas.Max);
-        var json = XElement.Load(reader);
-        return new((
+        var json = XElement.Load(reader); return new((
             json.Element("content.bundledPackages")?.Elements().Select(_ => _.Value.Split('_')).FirstOrDefault(_ => _[2] is "x64")
             ??
-            json.Element("content.packageId").Value.Split('_')
-        )[1]);
+            json.Element("content.packageId").Value.Split('_'))
+        [1]);
     }
 
     internal static IEnumerable<Lazy<Uri>[]> Get(params string[] source) => source.Select<string, (string AppCategoryId, string Id, Dictionary<string, HashSet<string>> Packages)>(_ =>
     {
-        using var stream = client.OpenRead(string.Format(address, _)); using var reader = JsonReaderWriterFactory.CreateJsonReader(stream, XmlDictionaryReaderQuotas.Max);
-        var json = XElement.Load(reader);
+        using var stream = client.OpenRead(string.Format(address, _)); using var reader = JsonReaderWriterFactory.CreateJsonReader(stream, XmlDictionaryReaderQuotas.Max); var json = XElement.Load(reader);
         Dictionary<string, HashSet<string>> packages = [];
         foreach (var item in json.Descendants("FrameworkDependencies"))
         {
@@ -71,39 +69,22 @@ static class Store
         {
             if (!dictionary.TryGetValue(element.LocalElement("ID").Value, out var main)) continue;
 
-            var moniker = element.LocalDescendants("AppxMetadata").First().Attribute("PackageMoniker").Value; var substrings = moniker.Split('_');
+            var name = element.LocalDescendants("AppxMetadata").First().Attribute("PackageMoniker").Value; var substrings = name.Split('_');
             var @string = substrings[2]; if (@string is not "neutral" && @string is not "x64") continue;
             var identity = element.LocalDescendants("UpdateIdentity").First();
             var id = identity.Attribute("UpdateID").Value; var revision = identity.Attribute("RevisionNumber").Value;
             var rank = int.Parse(element.LocalDescendants("Properties").First().Attribute("PackageRank").Value);
 
             var key = $"{substrings[0]}_{substrings[4]}";
-            if (!packages.TryGetValue(key, out var value)) packages.Add(key, new()
-            {
-                Name = moniker,
-                Identity = substrings[0],
-                Rank = rank,
-                Main = main,
-                Id = id,
-                Revision = revision,
-                Version = Version(element)
-            });
-            else if (value.Rank < rank)
-            {
-                value.Name = moniker;
-                value.Rank = rank;
-                value.Id = id;
-                value.Revision = revision;
-                value.Version = Version(element);
-            }
+            if (!packages.TryGetValue(key, out var value)) packages.Add(key, new() { Name = name, Identity = substrings[0], Rank = rank, Main = main, Id = id, Revision = revision, Version = Version(element) });
+            else if (value.Rank < rank) { value.Name = name; value.Rank = rank; value.Id = id; value.Revision = revision; value.Version = Version(element); }
         }
         return packages.Get(source.Packages);
     }
 
     static Lazy<Uri>[] Get(this Dictionary<string, Package> source, Dictionary<string, HashSet<string>> packages)
     {
-        var main = source.FirstOrDefault(_ => _.Value.Main); if (main.Value is null) return [];
-        packages.TryGetValue(main.Value.Name, out var set);
+        var main = source.FirstOrDefault(_ => _.Value.Main); packages.TryGetValue(main.Value.Name, out var set);
 
         List<Package> list = [];
         foreach (var item in source.Where(_ => _.Value.Main || (set?.Contains(_.Value.Identity) ?? true)))
