@@ -9,7 +9,6 @@ using Windows.ApplicationModel;
 using Windows.System.UserProfile;
 using System.Collections.Generic;
 using Windows.Management.Deployment;
-using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Json;
 
 sealed class Package
@@ -29,21 +28,16 @@ static class Store
 
     static (string SyncUpdates, string GetExtendedUpdateInfo2) _ = (default, Resources.Get<string>("GetExtendedUpdateInfo2.xml.gz"));
 
-    static readonly (string String, ProcessorArchitecture Architecture) platform = (
-        RuntimeInformation.OSArchitecture is Architecture.X64 ? "x64" : default,
-        RuntimeInformation.OSArchitecture is Architecture.X64 ? ProcessorArchitecture.X64 : ProcessorArchitecture.Unknown
-    );
-
     static readonly string address = $"https://displaycatalog.mp.microsoft.com/v7.0/products/{{0}}?languages=iv&market={GlobalizationPreferences.HomeGeographicRegion}";
 
     static readonly WebClient client = new() { BaseAddress = "https://fe3cr.delivery.mp.microsoft.com/ClientWebService/client.asmx/" };
 
     static Version Version(XElement element)
     {
-        using var reader = JsonReaderWriterFactory.CreateJsonReader(Encoding.Unicode.GetBytes(element.LocalDescendant("ApplicabilityBlob").Value), XmlDictionaryReaderQuotas.Max);
+        using var reader = JsonReaderWriterFactory.CreateJsonReader(Encoding.Unicode.GetBytes(element.LocalDescendants("ApplicabilityBlob").First().Value), XmlDictionaryReaderQuotas.Max);
         var json = XElement.Load(reader);
         return new((
-            json.Element("content.bundledPackages")?.Elements().Select(_ => _.Value.Split('_')).FirstOrDefault(_ => _[2] == platform.String)
+            json.Element("content.bundledPackages")?.Elements().Select(_ => _.Value.Split('_')).FirstOrDefault(_ => _[2] == "x64")
             ??
             json.Element("content.packageId").Value.Split('_')
         )[1]);
@@ -59,13 +53,13 @@ static class Store
             var value = item.Parent.Element("PackageFullName").Value;
             if (!packages.ContainsKey(value)) packages.Add(value, item.Descendants("PackageIdentity").Select(_ => _.Value).ToHashSet());
         }
-        return (json.LocalDescendant("WuCategoryId").Value, _, packages);
+        return (json.LocalDescendants("WuCategoryId").First().Value, _, packages);
     }).Select(_ => _.Get());
 
     static Lazy<Uri>[] Get(this (string AppCategoryId, string Id, Dictionary<string, HashSet<string>> Packages) source)
     {
         var root = Post(string.Format(_.SyncUpdates ??= string.Format(Resources.Get<string>("SyncUpdates.xml.gz"), Post(Resources.Get<string>("GetCookie.xml.gz"))
-        .LocalDescendant("EncryptedData").Value, "{0}"), source.AppCategoryId), decode: true).LocalDescendant("SyncUpdatesResult");
+        .LocalDescendants("EncryptedData").First().Value, "{0}"), source.AppCategoryId), decode: true).LocalDescendants("SyncUpdatesResult").First();
 
         var dictionary = root.LocalDescendants("AppxPackageInstallData").Where(_ =>
         {
@@ -77,11 +71,11 @@ static class Store
         {
             if (!dictionary.TryGetValue(element.LocalElement("ID").Value, out var main)) continue;
 
-            var moniker = element.LocalDescendant("AppxMetadata").Attribute("PackageMoniker").Value; var substrings = moniker.Split('_');
-            var @string = substrings[2]; if (@string is not "neutral" && @string != platform.String) continue;
-            var identity = element.LocalDescendant("UpdateIdentity");
+            var moniker = element.LocalDescendants("AppxMetadata").First().Attribute("PackageMoniker").Value; var substrings = moniker.Split('_');
+            var @string = substrings[2]; if (@string is not "neutral" && @string != "x64") continue;
+            var identity = element.LocalDescendants("UpdateIdentity").First();
             var id = identity.Attribute("UpdateID").Value; var revision = identity.Attribute("RevisionNumber").Value;
-            var rank = int.Parse(element.LocalDescendant("Properties").Attribute("PackageRank").Value);
+            var rank = int.Parse(element.LocalDescendants("Properties").First().Attribute("PackageRank").Value);
 
             var key = $"{substrings[0]}_{substrings[4]}";
             if (!packages.TryGetValue(key, out var value)) packages.Add(key, new()
@@ -114,7 +108,7 @@ static class Store
         List<Package> list = [];
         foreach (var item in source.Where(_ => _.Value.Main || (set?.Contains(_.Value.Identity) ?? true)))
         {
-            var package = PackageManager.FindPackagesForUser(string.Empty, item.Key).FirstOrDefault(_ => _.Id.Architecture == platform.Architecture || item.Value.Main);
+            var package = PackageManager.FindPackagesForUser(string.Empty, item.Key).FirstOrDefault(_ => _.Id.Architecture is ProcessorArchitecture.X64 || item.Value.Main);
             if (package is null || (package.SignatureKind is PackageSignatureKind.Store &&
                 item.Value.Version > new Version(package.Id.Version.Major, package.Id.Version.Minor, package.Id.Version.Build, package.Id.Version.Revision))) list.Add(item.Value);
             else if (item.Value.Main) return [];
@@ -127,8 +121,6 @@ static class Store
     static XElement LocalElement(this XElement source, string name) => source.Elements().Where(_ => _.Name.LocalName == name).FirstOrDefault();
 
     static IEnumerable<XElement> LocalDescendants(this XElement source, string name) => source.Descendants().Where(_ => _.Name.LocalName == name);
-
-    static XElement LocalDescendant(this XElement source, string name) => source.LocalDescendants(name).FirstOrDefault();
 
     static XElement Post(string data, bool secured = false, bool decode = false)
     {
