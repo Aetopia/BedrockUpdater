@@ -55,7 +55,7 @@ sealed class Window : System.Windows.Window
         Dispatcher.UnhandledException += (_, e) =>
         {
             e.Handled = true; var exception = e.Exception;
-            while (exception.InnerException is null) exception = exception.InnerException;
+            while (exception.InnerException is not null) exception = exception.InnerException;
             ShellMessageBox(hWnd: new WindowInteropHelper(this).Handle, lpcText: exception.Message);
             Close();
         };
