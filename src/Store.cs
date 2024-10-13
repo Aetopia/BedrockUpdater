@@ -37,7 +37,7 @@ static class Store
         using var reader = JsonReaderWriterFactory.CreateJsonReader(Encoding.Unicode.GetBytes(element.LocalDescendants("ApplicabilityBlob").First().Value), XmlDictionaryReaderQuotas.Max);
         var json = XElement.Load(reader);
         return new((
-            json.Element("content.bundledPackages")?.Elements().Select(_ => _.Value.Split('_')).FirstOrDefault(_ => _[2] == "x64")
+            json.Element("content.bundledPackages")?.Elements().Select(_ => _.Value.Split('_')).FirstOrDefault(_ => _[2] is "x64")
             ??
             json.Element("content.packageId").Value.Split('_')
         )[1]);
@@ -63,8 +63,8 @@ static class Store
 
         var dictionary = root.LocalDescendants("AppxPackageInstallData").Where(_ =>
         {
-            var attribute = _.Attribute("PackageFileName").Value; return attribute[attribute.LastIndexOf('.') + 1] != 'e';
-        }).ToDictionary(_ => _.Parent.Parent.Parent.LocalElement("ID").Value, _ => _.Attribute("MainPackage").Value == "true");
+            var attribute = _.Attribute("PackageFileName").Value; return attribute[attribute.LastIndexOf('.') + 1] is not 'e';
+        }).ToDictionary(_ => _.Parent.Parent.Parent.LocalElement("ID").Value, _ => _.Attribute("MainPackage").Value is "true");
 
         Dictionary<string, Package> packages = [];
         foreach (var element in root.LocalDescendants("UpdateInfo"))
@@ -72,7 +72,7 @@ static class Store
             if (!dictionary.TryGetValue(element.LocalElement("ID").Value, out var main)) continue;
 
             var moniker = element.LocalDescendants("AppxMetadata").First().Attribute("PackageMoniker").Value; var substrings = moniker.Split('_');
-            var @string = substrings[2]; if (@string is not "neutral" && @string != "x64") continue;
+            var @string = substrings[2]; if (@string is not "neutral" && @string is not "x64") continue;
             var identity = element.LocalDescendants("UpdateIdentity").First();
             var id = identity.Attribute("UpdateID").Value; var revision = identity.Attribute("RevisionNumber").Value;
             var rank = int.Parse(element.LocalDescendants("Properties").First().Attribute("PackageRank").Value);

@@ -65,7 +65,7 @@ sealed class Window : System.Windows.Window
             AddPackageOptions options = new() { ForceAppShutdown = true };
             Progress<DeploymentProgress> progress = new((_) => Dispatcher.Invoke(() =>
             {
-                if (bar.Value != _.percentage && _.state == DeploymentProgressState.Processing) { if (bar.IsIndeterminate) bar.IsIndeterminate = false; block2.Text = $"Preparing... {bar.Value = _.percentage}%"; }
+                if (bar.Value != _.percentage && _.state is DeploymentProgressState.Processing) { if (bar.IsIndeterminate) bar.IsIndeterminate = false; block2.Text = $"Preparing... {bar.Value = _.percentage}%"; }
             }));
             foreach (var array in Store.Get("9WZDNCRD1HKW", _ ? "9P5X4QVLC2XR" : "9NBLGGH2JHXJ"))
             {
