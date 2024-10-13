@@ -94,9 +94,8 @@ static class Store
                 item.Value.Version > new Version(package.Id.Version.Major, package.Id.Version.Minor, package.Id.Version.Build, package.Id.Version.Revision))) list.Add(item.Value);
             else if (item.Value.Main) return [];
         }
-        list.Sort((x, y) => x.Main ? 1 : -1); return list.Select(_ => new Lazy<Uri>(() => new(Post(string.Format(Store._.GetExtendedUpdateInfo2, _.Id, _.Revision), true)
-        .LocalDescendants("Url").First(_ => _.Value.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).Value)))
-        .ToArray();
+        return list.OrderBy(_ => _.Main).Select(_ => new Lazy<Uri>(() => new(Post(string.Format(Store._.GetExtendedUpdateInfo2, _.Id, _.Revision), true)
+        .LocalDescendants("Url").First(_ => _.Value.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).Value))).ToArray();
     }
 
     static XElement LocalElement(this XElement source, string name) => source.Elements().Where(_ => _.Name.LocalName == name).FirstOrDefault();
