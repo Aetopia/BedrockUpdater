@@ -42,19 +42,18 @@ static class Store
         [1]);
     }
 
-    internal static IEnumerable<Lazy<Uri>[]> Get(params string[] source) => source.Select<string, (string AppCategoryId, string Id, Dictionary<string, HashSet<string>> Packages)>(_ =>
+    internal static IEnumerable<Lazy<Uri>[]> Get(params string[] source) => source.Select<string, (string AppCategoryId, Dictionary<int, HashSet<string>> Frameworks)>(_ =>
     {
         using var stream = client.OpenRead(string.Format(address, _)); using var reader = JsonReaderWriterFactory.CreateJsonReader(stream, XmlDictionaryReaderQuotas.Max); var json = XElement.Load(reader);
-        Dictionary<string, HashSet<string>> packages = [];
-        foreach (var item in json.Descendants("FrameworkDependencies"))
+        return new()
         {
-            var value = item.Parent.Element("PackageFullName").Value;
-            if (!packages.ContainsKey(value)) packages.Add(value, item.Descendants("PackageIdentity").Select(_ => _.Value).ToHashSet());
-        }
-        return (json.LocalDescendants("WuCategoryId").First().Value, _, packages);
+            AppCategoryId = json.LocalDescendants("WuCategoryId").First().Value,
+            Frameworks = json.Descendants("Packages").First().Descendants("FrameworkDependencies")
+            .ToDictionary(_ => int.Parse(_.Parent.Element("PackageRank").Value), _ => _.Descendants("PackageIdentity").Select(_ => _.Value).ToHashSet())
+        };
     }).Select(_ => _.Get());
 
-    static Lazy<Uri>[] Get(this (string AppCategoryId, string Id, Dictionary<string, HashSet<string>> Packages) source)
+    static Lazy<Uri>[] Get(this (string AppCategoryId, Dictionary<int, HashSet<string>> Frameworks) source)
     {
         var root = Post(string.Format(_.SyncUpdates ??= string.Format(Resources.Get<string>("SyncUpdates.xml.gz"), Post(Resources.Get<string>("GetCookie.xml.gz"))
         .LocalDescendants("EncryptedData").First().Value, "{0}"), source.AppCategoryId), decode: true).LocalDescendants("SyncUpdatesResult").First();
@@ -79,12 +78,12 @@ static class Store
             if (!packages.TryGetValue(key, out var value)) packages.Add(key, new() { Name = name, Identity = substrings[0], Rank = rank, Main = main, Id = id, Revision = revision, Version = Version(element) });
             else if (value.Rank < rank) { value.Name = name; value.Rank = rank; value.Id = id; value.Revision = revision; value.Version = Version(element); }
         }
-        return packages.Get(source.Packages);
+        return packages.Get(source.Frameworks);
     }
 
-    static Lazy<Uri>[] Get(this Dictionary<string, Package> source, Dictionary<string, HashSet<string>> packages)
+    static Lazy<Uri>[] Get(this Dictionary<string, Package> source, Dictionary<int, HashSet<string>> frameworks)
     {
-        var main = source.FirstOrDefault(_ => _.Value.Main); packages.TryGetValue(main.Value.Name, out var set);
+        var main = source.FirstOrDefault(_ => _.Value.Main); frameworks.TryGetValue(main.Value.Rank, out var set);
 
         List<Package> list = [];
         foreach (var item in source.Where(_ => _.Value.Main || (set?.Contains(_.Value.Identity) ?? true)))
