@@ -5,12 +5,11 @@ using System.Linq;
 using System.Text;
 using Windows.System;
 using System.Xml.Linq;
+using Windows.Globalization;
 using Windows.ApplicationModel;
-using Windows.System.UserProfile;
 using System.Collections.Generic;
 using Windows.Management.Deployment;
 using System.Runtime.Serialization.Json;
-using Windows.Globalization;
 
 sealed class Package
 {
