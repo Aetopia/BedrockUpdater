@@ -10,6 +10,7 @@ using Windows.System.UserProfile;
 using System.Collections.Generic;
 using Windows.Management.Deployment;
 using System.Runtime.Serialization.Json;
+using Windows.Globalization;
 
 sealed class Package
 {
@@ -26,11 +27,12 @@ static class Store
 {
     internal static readonly PackageManager PackageManager = new();
 
-    static (string SyncUpdates, string GetExtendedUpdateInfo2) _ = (default, Resources.Get<string>("GetExtendedUpdateInfo2.xml.gz"));
+    static string SyncUpdates;
+    static readonly string GetExtendedUpdateInfo2 = Resources.Get<string>("GetExtendedUpdateInfo2.xml.gz");
 
-    static readonly string address = $"https://displaycatalog.mp.microsoft.com/v7.0/products/{{0}}?languages=iv&market={GlobalizationPreferences.HomeGeographicRegion}";
+    static readonly string Address = $"https://displaycatalog.mp.microsoft.com/v7.0/products/{{0}}?languages=iv&market={new GeographicRegion().CodeTwoLetter}";
 
-    static readonly WebClient client = new() { BaseAddress = "https://fe3cr.delivery.mp.microsoft.com/ClientWebService/client.asmx/" };
+    static readonly WebClient Client = new() { BaseAddress = "https://fe3cr.delivery.mp.microsoft.com/ClientWebService/client.asmx/" };
 
     static Version Version(XElement element)
     {
@@ -44,7 +46,7 @@ static class Store
 
     internal static IEnumerable<Lazy<Uri>[]> Get(params string[] source) => source.Select<string, (string AppCategoryId, Dictionary<int, HashSet<string>> Frameworks)>(_ =>
     {
-        using var stream = client.OpenRead(string.Format(address, _)); using var reader = JsonReaderWriterFactory.CreateJsonReader(stream, XmlDictionaryReaderQuotas.Max); var json = XElement.Load(reader);
+        using var stream = Client.OpenRead(string.Format(Address, _)); using var reader = JsonReaderWriterFactory.CreateJsonReader(stream, XmlDictionaryReaderQuotas.Max); var json = XElement.Load(reader);
         return new()
         {
             AppCategoryId = json.LocalDescendants("WuCategoryId").First().Value,
@@ -55,7 +57,7 @@ static class Store
 
     static Lazy<Uri>[] Get(this (string AppCategoryId, Dictionary<int, HashSet<string>> Frameworks) source)
     {
-        var root = Post(string.Format(_.SyncUpdates ??= string.Format(Resources.Get<string>("SyncUpdates.xml.gz"), Post(Resources.Get<string>("GetCookie.xml.gz"))
+        var root = Post(string.Format(SyncUpdates ??= string.Format(Resources.Get<string>("SyncUpdates.xml.gz"), Post(Resources.Get<string>("GetCookie.xml.gz"))
         .LocalDescendants("EncryptedData").First().Value, "{0}"), source.AppCategoryId), decode: true).LocalDescendants("SyncUpdatesResult").First();
 
         var dictionary = root.LocalDescendants("AppxPackageInstallData").Where(_ =>
@@ -93,7 +95,7 @@ static class Store
                 item.Value.Version > new Version(package.Id.Version.Major, package.Id.Version.Minor, package.Id.Version.Build, package.Id.Version.Revision))) list.Add(item.Value);
             else if (item.Value.Main) return [];
         }
-        return list.OrderBy(_ => _.Main).Select(_ => new Lazy<Uri>(() => new(Post(string.Format(Store._.GetExtendedUpdateInfo2, _.Id, _.Revision), true)
+        return list.OrderBy(_ => _.Main).Select(_ => new Lazy<Uri>(() => new(Post(string.Format(GetExtendedUpdateInfo2, _.Id, _.Revision), true)
         .LocalDescendants("Url").First(_ => _.Value.StartsWith("http://tlu.dl.delivery.mp.microsoft.com", StringComparison.Ordinal)).Value))).ToArray();
     }
 
@@ -103,8 +105,8 @@ static class Store
 
     static XElement Post(string data, bool secured = false, bool decode = false)
     {
-        client.Headers["Content-Type"] = "application/soap+xml";
-        var value = client.UploadString(secured ? "secured" : string.Empty, data);
+        Client.Headers["Content-Type"] = "application/soap+xml";
+        var value = Client.UploadString(secured ? "secured" : string.Empty, data);
         return XElement.Parse(decode ? WebUtility.HtmlDecode(value) : value);
     }
 }

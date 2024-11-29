@@ -13,7 +13,7 @@
     <ApplicationManifest>Resources/.manifest</ApplicationManifest>
     <ApplicationIcon>Resources/.ico</ApplicationIcon>
 
-    <AssemblyVersion>2.2.4.0</AssemblyVersion>
+    <AssemblyVersion>2.2.5.0</AssemblyVersion>
     <AssemblyTitle>Bedrock Updater</AssemblyTitle>
     <Product>Bedrock Updater</Product>
     <Copyright>Copyright (C) 2024</Copyright>
