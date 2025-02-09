@@ -13,7 +13,7 @@ sealed class Window : System.Windows.Window
     [DllImport("Shell32", CharSet = CharSet.Auto, SetLastError = true), DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     static extern int ShellMessageBox(nint hAppInst = default, nint hWnd = default, string lpcText = default, string lpcTitle = "Bedrock Updater", int fuStyle = 0x00000010);
 
-    public Window(bool _)
+    public Window(bool value)
     {
         Icon = global::Resources.Get<ImageSource>(".ico");
         UseLayoutRounding = true;
@@ -22,17 +22,33 @@ sealed class Window : System.Windows.Window
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         SizeToContent = SizeToContent.WidthAndHeight;
         Background = new SolidColorBrush(Color.FromRgb(30, 30, 30));
-        var text = _ ? "Updating Preview..." : "Updating Release...";
+        var text = value ? "Updating Preview..." : "Updating Release...";
 
-        Canvas canvas = new() { Width = 381, Height = 115 }; Content = canvas;
+        Canvas canvas = new() { Width = 381, Height = 115 };
 
-        TextBlock block1 = new() { Text = text, Foreground = Brushes.White };
-        canvas.Children.Add(block1); Canvas.SetLeft(block1, 11); Canvas.SetTop(block1, 15);
+        Content = canvas;
 
-        TextBlock block2 = new() { Text = "Preparing...", Foreground = Brushes.White };
-        canvas.Children.Add(block2); Canvas.SetLeft(block2, 11); Canvas.SetTop(block2, 84);
+        TextBlock textBlock1 = new()
+        {
+            Text = text,
+            Foreground = Brushes.White
+        };
 
-        ProgressBar bar = new()
+        canvas.Children.Add(textBlock1);
+        Canvas.SetLeft(textBlock1, 11);
+        Canvas.SetTop(textBlock1, 15);
+
+        TextBlock textBlock2 = new()
+        {
+            Text = "Preparing...",
+            Foreground = Brushes.White
+        };
+
+        canvas.Children.Add(textBlock2);
+        Canvas.SetLeft(textBlock2, 11);
+        Canvas.SetTop(textBlock2, 84);
+
+        ProgressBar progressBar = new()
         {
             Width = 359,
             Height = 23,
@@ -41,22 +57,37 @@ sealed class Window : System.Windows.Window
             Foreground = new SolidColorBrush(Color.FromRgb(0, 133, 66)),
             Background = new SolidColorBrush(Color.FromRgb(14, 14, 14))
         };
-        canvas.Children.Add(bar); Canvas.SetLeft(bar, 11); Canvas.SetTop(bar, 46);
+
+        canvas.Children.Add(progressBar);
+        Canvas.SetLeft(progressBar, 11);
+        Canvas.SetTop(progressBar, 46);
 
         Task<DeploymentResult> task = default;
         IAsyncOperationWithProgress<DeploymentResult, DeploymentProgress> operation = default;
 
         Closed += (_, _) =>
         {
-            if (operation is not null) using (var handle = ((IAsyncResult)task).AsyncWaitHandle) { operation.Cancel(); handle.WaitOne(); }
-            foreach (var package in Store.PackageManager.FindPackagesForUserWithPackageTypes(string.Empty, PackageTypes.Framework)) Store.PackageManager.RemovePackageAsync(package.Id.FullName);
+            if (operation is not null)
+                using (var handle = ((IAsyncResult)task).AsyncWaitHandle)
+                {
+                    operation.Cancel();
+                    handle.WaitOne();
+                }
+
+            foreach (var package in Store.PackageManager.FindPackagesForUserWithPackageTypes(string.Empty, PackageTypes.Framework))
+                _ = Store.PackageManager.RemovePackageAsync(package.Id.FullName);
         };
 
         Dispatcher.UnhandledException += (_, e) =>
         {
-            e.Handled = true; var exception = e.Exception;
-            while (exception.InnerException is not null) exception = exception.InnerException;
+            e.Handled = true;
+            var exception = e.Exception;
+
+            while (exception.InnerException is not null)
+                exception = exception.InnerException;
+
             ShellMessageBox(hWnd: new WindowInteropHelper(this).Handle, lpcText: exception.Message);
+
             Close();
         };
 
@@ -65,17 +96,38 @@ sealed class Window : System.Windows.Window
             AddPackageOptions options = new() { ForceAppShutdown = true };
             Progress<DeploymentProgress> progress = new((_) => Dispatcher.Invoke(() =>
             {
-                if (bar.Value != _.percentage && _.state is DeploymentProgressState.Processing) { if (bar.IsIndeterminate) bar.IsIndeterminate = false; block2.Text = $"Preparing... {bar.Value = _.percentage}%"; }
+                if (progressBar.Value != _.percentage && _.state is DeploymentProgressState.Processing)
+                {
+                    if (progressBar.IsIndeterminate)
+                        progressBar.IsIndeterminate = false;
+                    textBlock2.Text = $"Preparing... {progressBar.Value = _.percentage}%";
+                }
             }));
-            foreach (var array in Store.Get("9WZDNCRD1HKW", _ ? "9P5X4QVLC2XR" : "9NBLGGH2JHXJ"))
+
+            foreach (var array in Store.Get("9WZDNCRD1HKW", value ? "9P5X4QVLC2XR" : "9NBLGGH2JHXJ"))
             {
                 for (int index = 0; index < array.Length; index++)
                 {
-                    Dispatcher.Invoke(() => { block1.Text = $"{text} {index + 1} / {array.Length}"; block2.Text = "Preparing..."; bar.IsIndeterminate = true; bar.Value = 0; });
+                    Dispatcher.Invoke(() =>
+                    {
+                        textBlock1.Text = $"{text} {index + 1} / {array.Length}";
+                        textBlock2.Text = "Preparing...";
+                        progressBar.IsIndeterminate = true;
+                        progressBar.Value = 0;
+                    });
+
                     (task = (operation = Store.PackageManager.AddPackageByUriAsync(array[index].Value, options)).AsTask(progress)).Wait();
                 }
-                Dispatcher.Invoke(() => { block1.Text = text; block2.Text = "Preparing..."; bar.Value = 0; ; bar.IsIndeterminate = true; });
+
+                Dispatcher.Invoke(() =>
+                {
+                    textBlock1.Text = text;
+                    textBlock2.Text = "Preparing...";
+                    progressBar.Value = 0;
+                    progressBar.IsIndeterminate = true;
+                });
             }
+
             Dispatcher.Invoke(Close);
         });
     }
