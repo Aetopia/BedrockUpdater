@@ -11,7 +11,7 @@ Download, update & install Minecraft: Bedrock Edition without the Microsoft Stor
         
     - Minecraft Preview
 
-- Decouples the game from the Microsoft Store & Windows Update.
+- Decouples the game from the Microsoft Store.
     - Making it possible to deploy Minecraft: Bedrock Edition on systems where these components aren't accessible.
 
 - Installs any dependencies required for Minecraft: Bedrock Edition.

@@ -9,13 +9,9 @@ static class Resources
 {
     static readonly Assembly Assembly = Assembly.GetExecutingAssembly();
 
-    internal static T Get<T>(string name)
+    internal static ImageSource GetImageSource(string name)
     {
-        using var stream = Assembly.GetManifestResourceStream(name); switch (typeof(T))
-        {
-            case var @_ when _ == typeof(string): using (StreamReader reader = new(new GZipStream(stream, CompressionMode.Decompress))) return (T)(object)reader.ReadToEnd();
-            case var @_ when _ == typeof(ImageSource): return (T)(object)BitmapFrame.Create(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
-            default: throw new TypeAccessException();
-        }
+        using var stream = Assembly.GetManifestResourceStream(name);
+        return BitmapFrame.Create(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
     }
 }
