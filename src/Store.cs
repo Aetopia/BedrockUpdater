@@ -32,7 +32,11 @@ static class Store
         await Task.WhenAll(tasks);
 
         var item = await tasks[0] ?? await tasks[1];
-        if (item is not null) return item;
+        if (item is not null)
+        {
+            _manager.MoveToFrontOfDownloadQueue(item.ProductId, string.Empty);
+            return item;
+        }
 
         string productId = product.ProductId, packageFamilyName = product.PackageFamilyName;
         GetPackagesByPackageFamily(packageFamilyName, out var count, new(), out _, new());
