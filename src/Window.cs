@@ -77,8 +77,7 @@ sealed class Window : System.Windows.Window
     {
         base.OnContentRendered(e);
 
-        var length = _products.Length;
-        for (var index = 0; index < length; index++)
+        var length = _products.Length; for (var index = 0; index < length; index++)
         {
             _textBlock1.Text = $"{_text} {index + 1} / {length}";
 
@@ -90,13 +89,6 @@ sealed class Window : System.Windows.Window
                 using (_request) await _request;
                 _request = null;
             }
-
-            if (!_progressBar.IsIndeterminate)
-            {
-                _progressBar.Value = 0;
-                _textBlock2.Text = $"Preparing...";
-                _progressBar.IsIndeterminate = true;
-            }
         }
 
         Close();
@@ -106,11 +98,13 @@ sealed class Window : System.Windows.Window
     {
         if (_progressBar.Value != _)
         {
-            if (_progressBar.IsIndeterminate)
-                _progressBar.IsIndeterminate = false;
-
-            _progressBar.Value = _;
-            _textBlock2.Text = $"Preparing {_}%..";
+            if (_progressBar.IsIndeterminate) _progressBar.IsIndeterminate = false;
+            _progressBar.Value = _; _textBlock2.Text = $"Preparing {_}%...";
+        }
+        else if (_ is 0 or 100)
+        {
+            if (!_progressBar.IsIndeterminate) _progressBar.IsIndeterminate = true;
+            _progressBar.Value = 0; _textBlock2.Text = $"Preparing...";
         }
     });
 }
