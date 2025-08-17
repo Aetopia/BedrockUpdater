@@ -58,7 +58,7 @@ static class Store
         _manager.MoveToFrontOfDownloadQueue(item.ProductId, string.Empty);
 
         TaskCompletionSource<bool> source = new();
-      
+
         var task = source.Task;
         _ = task.ContinueWith(_ => item.Cancel(), OnlyOnFaulted | ExecuteSynchronously);
 
@@ -86,6 +86,10 @@ static class Store
 
             switch (state)
             {
+                case AppInstallState.Canceled:
+                case AppInstallState.Completed:
+                    break;
+
                 case AppInstallState.Error:
                     source.TrySetException(status.ErrorCode);
                     break;
