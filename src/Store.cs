@@ -8,10 +8,8 @@ static class Store
 {
     static readonly AppInstallManager _manager = new();
 
-    static async Task<AppInstallItem?> FindItemAsync(Product product, IReadOnlyList<AppInstallItem> items)
+    static async Task<AppInstallItem?> FindItemAsync(string productId, IReadOnlyList<AppInstallItem> items)
     {
-        var productId = product.ProductId;
-
         foreach (var item in items)
         {
             await Task.Yield();
@@ -22,37 +20,37 @@ static class Store
         return null;
     }
 
-    static async Task<AppInstallItem?> GetAppAsync(Product product) => await FindItemAsync(product, _manager.AppInstallItems);
+    static async Task<AppInstallItem?> GetAppAsync(string productId) => await FindItemAsync(productId, _manager.AppInstallItems);
 
-    static async Task<AppInstallItem?> GetAppBundleAsync(Product product) => await FindItemAsync(product, _manager.AppInstallItemsWithGroupSupport);
+    static async Task<AppInstallItem?> GetAppBundleAsync(string productId) => await FindItemAsync(productId, _manager.AppInstallItemsWithGroupSupport);
 
-    static async Task GetEntitlementAsync(Product product)
+    static async Task GetEntitlementAsync(string productId)
     {
-        var storeId = product.ProductId; var tasks = new Task[2];
-        tasks[0] = _manager.GetFreeDeviceEntitlementAsync(storeId, string.Empty, string.Empty).AsTask();
-        tasks[1] = _manager.GetFreeUserEntitlementAsync(storeId, string.Empty, string.Empty).AsTask();
+        var tasks = new Task[2];
+        tasks[0] = _manager.GetFreeDeviceEntitlementAsync(productId, string.Empty, string.Empty).AsTask();
+        tasks[1] = _manager.GetFreeUserEntitlementAsync(productId, string.Empty, string.Empty).AsTask();
         await Task.WhenAll(tasks);
     }
 
     static async Task<AppInstallItem?> GetItemAsync(Product product)
     {
-        await GetEntitlementAsync(product);
+        string productId = product.ProductId;
+        await GetEntitlementAsync(productId);
 
-        Task<AppInstallItem?>[] tasks = [GetAppAsync(product), GetAppBundleAsync(product)];
+        Task<AppInstallItem?>[] tasks = [GetAppAsync(productId), GetAppBundleAsync(productId)];
         await Task.WhenAll(tasks);
 
         var item = await tasks[0] ?? await tasks[1];
         if (item is not null) return item;
 
-        string productId = product.ProductId;
         GetPackagesByPackageFamily(product.PackageFamilyName, out var count, new(), out _, new());
-
         if (count > 0) item = await _manager.SearchForUpdatesAsync(productId, string.Empty);
         else
         {
             var items = await _manager.StartProductInstallAsync(productId, string.Empty, string.Empty, string.Empty, null);
-            item = await FindItemAsync(product, items);
+            item = await FindItemAsync(productId, items);
         }
+
         return item;
     }
 
