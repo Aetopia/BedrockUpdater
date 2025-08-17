@@ -86,12 +86,16 @@ static class Store
 
             switch (state)
             {
-                case AppInstallState.Canceled:
-                case AppInstallState.Completed:
+                default:
+                    action(status.PercentComplete);
                     break;
 
                 case AppInstallState.Error:
                     source.TrySetException(status.ErrorCode);
+                    break;
+
+                case AppInstallState.Canceled:
+                case AppInstallState.Completed:
                     break;
 
                 case AppInstallState.Paused:
@@ -100,10 +104,6 @@ static class Store
                 case AppInstallState.PausedWiFiRequired:
                 case AppInstallState.PausedWiFiRecommended:
                     _manager.MoveToFrontOfDownloadQueue(sender.ProductId, string.Empty);
-                    break;
-
-                default:
-                    action(status.PercentComplete);
                     break;
             }
         };
