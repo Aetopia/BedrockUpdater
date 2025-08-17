@@ -58,8 +58,8 @@ static class Store
         _manager.MoveToFrontOfDownloadQueue(item.ProductId, string.Empty);
 
         TaskCompletionSource<bool> source = new();
-        var task = source.Task; var complete = 0D;
-
+      
+        var task = source.Task;
         _ = task.ContinueWith(_ => item.Cancel(), OnlyOnFaulted | ExecuteSynchronously);
 
         item.Completed += (sender, args) =>
@@ -99,8 +99,7 @@ static class Store
                     break;
 
                 default:
-                    var value = status.PercentComplete;
-                    if (complete != value) action(complete = value);
+                    action(status.PercentComplete);
                     break;
             }
         };
