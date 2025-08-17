@@ -103,10 +103,10 @@ sealed class Window : System.Windows.Window
         if (_progressBar.Value == _)
             return;
 
-        if (!_progressBar.IsIndeterminate)
-            _progressBar.IsIndeterminate = true;
-
         _progressBar.Value = _;
         _textBlock2.Text = $"Preparing {_}%...";
+
+        if (!_progressBar.IsIndeterminate)
+            _progressBar.IsIndeterminate = true;
     });
 }
