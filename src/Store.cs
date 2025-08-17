@@ -1,7 +1,7 @@
 using System;
 using static PInvoke;
-using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 using static System.Threading.Tasks.TaskContinuationOptions;
 using Windows.ApplicationModel.Store.Preview.InstallControl;
 using static Windows.ApplicationModel.Store.Preview.InstallControl.AppInstallState;

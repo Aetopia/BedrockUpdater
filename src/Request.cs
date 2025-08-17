@@ -1,8 +1,7 @@
-
 using System;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Runtime.CompilerServices;
 using Windows.ApplicationModel.Store.Preview.InstallControl;
 
 sealed class Request : IDisposable

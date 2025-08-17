@@ -1,12 +1,11 @@
 using System;
 using System.Linq;
-using System.Threading;
-using System.Globalization;
-using System.Runtime.InteropServices;
+using static PInvoke;
 using System.Windows;
 using System.Security;
+using System.Threading;
+using System.Globalization;
 using System.Runtime.ExceptionServices;
-using static PInvoke;
 
 static class Program
 {

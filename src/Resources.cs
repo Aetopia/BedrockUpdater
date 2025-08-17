@@ -1,8 +1,5 @@
-using System;
-using System.IO;
 using System.Reflection;
 using System.Windows.Media;
-using System.IO.Compression;
 using System.Windows.Media.Imaging;
 
 static class Resources
