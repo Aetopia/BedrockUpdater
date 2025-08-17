@@ -69,6 +69,8 @@ sealed class Window : System.Windows.Window
 
         if (_request is not null)
             using (_request) _request.Cancel();
+
+        Environment.Exit(0);
     }
 
     protected override async void OnContentRendered(EventArgs e)

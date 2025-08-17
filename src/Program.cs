@@ -15,7 +15,10 @@ static class Program
     {
         AppDomain.CurrentDomain.UnhandledException += [SecurityCritical, HandleProcessCorruptedStateExceptions] (sender, args) =>
         {
-            ShellMessageBox(default, default, $"{args.ExceptionObject}", "Bedrock Updater", MB_ICONERROR);
+            var exception = (Exception)args.ExceptionObject;
+            while (exception.InnerException is not null) exception = exception.InnerException; 
+
+            ShellMessageBox(default, default, exception.Message, "Bedrock Updater", MB_ICONERROR);
             Environment.Exit(0);
         };
 

@@ -22,13 +22,23 @@ static class Store
         return null;
     }
 
-    static async Task<AppInstallItem?> GetAppItemAsync(Product product) => await FindItemAsync(product, _manager.AppInstallItems);
+    static async Task<AppInstallItem?> GetAppAsync(Product product) => await FindItemAsync(product, _manager.AppInstallItems);
 
-    static async Task<AppInstallItem?> GetAppBundleItemAsync(Product product) => await FindItemAsync(product, _manager.AppInstallItemsWithGroupSupport);
+    static async Task<AppInstallItem?> GetAppBundleAsync(Product product) => await FindItemAsync(product, _manager.AppInstallItemsWithGroupSupport);
+
+    static async Task GetEntitlementAsync(Product product)
+    {
+        var storeId = product.ProductId; var tasks = new Task[2];
+        tasks[0] = _manager.GetFreeDeviceEntitlementAsync(storeId, string.Empty, string.Empty).AsTask();
+        tasks[1] = _manager.GetFreeUserEntitlementAsync(storeId, string.Empty, string.Empty).AsTask();
+        await Task.WhenAll(tasks);
+    }
 
     static async Task<AppInstallItem?> GetItemAsync(Product product)
     {
-        Task<AppInstallItem?>[] tasks = [GetAppItemAsync(product), GetAppBundleItemAsync(product)];
+        await GetEntitlementAsync(product);
+
+        Task<AppInstallItem?>[] tasks = [GetAppAsync(product), GetAppBundleAsync(product)];
         await Task.WhenAll(tasks);
 
         var item = await tasks[0] ?? await tasks[1];
@@ -41,9 +51,12 @@ static class Store
         string productId = product.ProductId, packageFamilyName = product.PackageFamilyName;
         GetPackagesByPackageFamily(packageFamilyName, out var count, new(), out _, new());
 
-        if (count > 0) item = await _manager.UpdateAppByPackageFamilyNameAsync(packageFamilyName);
-        else item = await _manager.StartAppInstallAsync(productId, string.Empty, false, false);
-
+        if (count > 0) item = await _manager.SearchForUpdatesAsync(productId, string.Empty);
+        else
+        {
+            var items = await _manager.StartProductInstallAsync(productId, string.Empty, string.Empty, string.Empty, null);
+            item = await FindItemAsync(product, items);
+        }
         return item;
     }
 
@@ -51,6 +64,8 @@ static class Store
     {
         var item = await GetItemAsync(product);
         if (item is null) return null;
+
+        _manager.MoveToFrontOfDownloadQueue(item.ProductId, string.Empty);
 
         TaskCompletionSource<bool> source = new();
         var task = source.Task; var complete = 0D;
