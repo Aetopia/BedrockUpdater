@@ -44,8 +44,8 @@ static class Store
         var item = await tasks[0] ?? await tasks[1];
         if (item is not null) return item;
 
-        string productId = product.ProductId, packageFamilyName = product.PackageFamilyName;
-        GetPackagesByPackageFamily(packageFamilyName, out var count, new(), out _, new());
+        string productId = product.ProductId;
+        GetPackagesByPackageFamily(product.PackageFamilyName, out var count, new(), out _, new());
 
         if (count > 0) item = await _manager.SearchForUpdatesAsync(productId, string.Empty);
         else
