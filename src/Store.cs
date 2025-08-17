@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using static System.Threading.Tasks.TaskContinuationOptions;
 using Windows.ApplicationModel.Store.Preview.InstallControl;
 using static PInvoke;
 
@@ -59,6 +60,8 @@ static class Store
         TaskCompletionSource<bool> source = new();
         var task = source.Task; var complete = 0D;
 
+        _ = task.ContinueWith(_ => item.Cancel(), OnlyOnFaulted | ExecuteSynchronously);
+
         item.Completed += (sender, args) =>
         {
             var status = sender.GetCurrentStatus();
@@ -71,8 +74,7 @@ static class Store
                     break;
 
                 case AppInstallState.Canceled:
-                    if (!task.IsFaulted)
-                        source.TrySetException(status.ErrorCode);
+                    if (!task.IsFaulted) source.TrySetCanceled();
                     break;
             }
         };
@@ -85,7 +87,6 @@ static class Store
             switch (state)
             {
                 case AppInstallState.Error:
-                    sender.Cancel();
                     source.TrySetException(status.ErrorCode);
                     break;
 
