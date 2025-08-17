@@ -16,40 +16,35 @@ static class Store
             if (productId.Equals(item.ProductId, StringComparison.OrdinalIgnoreCase))
                 return item;
         }
-
         return null;
     }
 
-    static async Task<AppInstallItem?> GetAppAsync(string productId) => await FindItemAsync(productId, _manager.AppInstallItems);
-
-    static async Task<AppInstallItem?> GetAppBundleAsync(string productId) => await FindItemAsync(productId, _manager.AppInstallItemsWithGroupSupport);
-
-    static async Task GetEntitlementAsync(string productId)
+    static async Task GetEntitlementsAsync(string storeId)
     {
         var tasks = new Task[2];
-        tasks[0] = _manager.GetFreeDeviceEntitlementAsync(productId, string.Empty, string.Empty).AsTask();
-        tasks[1] = _manager.GetFreeUserEntitlementAsync(productId, string.Empty, string.Empty).AsTask();
+        tasks[0] = _manager.GetFreeDeviceEntitlementAsync(storeId, string.Empty, string.Empty).AsTask();
+        tasks[1] = _manager.GetFreeUserEntitlementAsync(storeId, string.Empty, string.Empty).AsTask();
         await Task.WhenAll(tasks);
     }
 
     static async Task<AppInstallItem?> GetItemAsync(Product product)
     {
         string productId = product.ProductId;
-        await GetEntitlementAsync(productId);
+        await GetEntitlementsAsync(productId);
 
-        Task<AppInstallItem?>[] tasks = [GetAppAsync(productId), GetAppBundleAsync(productId)];
+        var tasks = new Task<AppInstallItem?>[2];
+        tasks[0] = FindItemAsync(productId, _manager.AppInstallItems);
+        tasks[1] = FindItemAsync(productId, _manager.AppInstallItemsWithGroupSupport);
         await Task.WhenAll(tasks);
 
         var item = await tasks[0] ?? await tasks[1];
         if (item is not null) return item;
 
-        GetPackagesByPackageFamily(product.PackageFamilyName, out var count, new(), out _, new());
-        if (count > 0) item = await _manager.SearchForUpdatesAsync(productId, string.Empty);
-        else
-        {
-            var items = await _manager.StartProductInstallAsync(productId, string.Empty, string.Empty, string.Empty, null);
-            item = await FindItemAsync(productId, items);
-        }
+        var packageFamilyName = product.PackageFamilyName;
+        GetPackagesByPackageFamily(packageFamilyName, out var count, new(), out _, new());
+
+        if (count > 0) item = await _manager.UpdateAppByPackageFamilyNameAsync(packageFamilyName);
+        else item = await _manager.StartAppInstallAsync(productId, string.Empty, false, false);
 
         return item;
     }
