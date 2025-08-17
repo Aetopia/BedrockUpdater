@@ -86,9 +86,14 @@ sealed class Window : System.Windows.Window
 
             if (_request is not null)
             {
+                _progressBar.IsIndeterminate = false;
                 using (_request) await _request;
                 _request = null;
             }
+
+            _progressBar.Value = 0;
+            _textBlock2.Text = $"Preparing...";
+            _progressBar.IsIndeterminate = true;
         }
 
         Close();
@@ -96,15 +101,7 @@ sealed class Window : System.Windows.Window
 
     void Action(double _) => Dispatcher.Invoke(() =>
     {
-        if (_progressBar.Value != _)
-        {
-            if (_progressBar.IsIndeterminate) _progressBar.IsIndeterminate = false;
-            _progressBar.Value = _; _textBlock2.Text = $"Preparing {_}%...";
-        }
-        else if (_ is 0 or 100)
-        {
-            if (!_progressBar.IsIndeterminate) _progressBar.IsIndeterminate = true;
-            _progressBar.Value = 0; _textBlock2.Text = $"Preparing...";
-        }
+        _progressBar.Value = _;
+        _textBlock2.Text = $"Preparing {_}%...";
     });
 }
