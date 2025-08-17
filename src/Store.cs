@@ -1,9 +1,10 @@
 using System;
+using static PInvoke;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using static System.Threading.Tasks.TaskContinuationOptions;
 using Windows.ApplicationModel.Store.Preview.InstallControl;
-using static PInvoke;
+using static Windows.ApplicationModel.Store.Preview.InstallControl.AppInstallState;
 
 static class Store
 {
@@ -69,11 +70,11 @@ static class Store
 
             switch (state)
             {
-                case AppInstallState.Completed:
+                case Completed:
                     source.TrySetResult(new());
                     break;
 
-                case AppInstallState.Canceled:
+                case Canceled:
                     if (!task.IsFaulted) source.TrySetCanceled();
                     break;
             }
@@ -90,19 +91,19 @@ static class Store
                     action(status.PercentComplete);
                     break;
 
-                case AppInstallState.Error:
+                case Error:
                     source.TrySetException(status.ErrorCode);
                     break;
 
-                case AppInstallState.Canceled:
-                case AppInstallState.Completed:
+                case Canceled:
+                case Completed:
                     break;
 
-                case AppInstallState.Paused:
-                case AppInstallState.ReadyToDownload:
-                case AppInstallState.PausedLowBattery:
-                case AppInstallState.PausedWiFiRequired:
-                case AppInstallState.PausedWiFiRecommended:
+                case Paused:
+                case ReadyToDownload:
+                case PausedLowBattery:
+                case PausedWiFiRequired:
+                case PausedWiFiRecommended:
                     _manager.MoveToFrontOfDownloadQueue(sender.ProductId, string.Empty);
                     break;
             }
