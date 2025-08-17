@@ -77,7 +77,8 @@ sealed class Window : System.Windows.Window
     {
         base.OnContentRendered(e);
 
-        var length = _products.Length; for (var index = 0; index < length; index++)
+        var length = _products.Length;
+        for (var index = 0; index < length; index++)
         {
             _textBlock1.Text = $"{_text} {index + 1} / {length}";
 
