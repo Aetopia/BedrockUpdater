@@ -99,9 +99,7 @@ sealed class Window : System.Windows.Window
             return;
 
         _progressBar.Value = _;
+        _progressBar.IsIndeterminate = false;
         _textBlock2.Text = $"Preparing... {_}%";
-
-        if (_progressBar.IsIndeterminate)
-            _progressBar.IsIndeterminate = false;
     });
 }
