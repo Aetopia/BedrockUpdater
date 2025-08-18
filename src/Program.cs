@@ -12,27 +12,30 @@ static class Program
 {
     static readonly Application _application = new();
 
+    [SecurityCritical, HandleProcessCorruptedStateExceptions]
+    static void UnhandledException(object sender, UnhandledExceptionEventArgs args)
+    {
+        nint handle = new();
+        var window = _application.MainWindow;
+
+        if (window is not null)
+        {
+            WindowInteropHelper helper = new(window);
+            handle = helper.EnsureHandle();
+        }
+
+        var exception = (Exception)args.ExceptionObject;
+        while (exception.InnerException is not null) exception = exception.InnerException;
+
+        var title = handle > 0 ? "Error" : "Bedrock Updater";
+        ShellMessageBox(default, handle, exception.Message, title, MB_ICONERROR);
+        Environment.Exit(0);
+    }
+
     [STAThread]
     static void Main(string[] args)
     {
-        AppDomain.CurrentDomain.UnhandledException += [SecurityCritical, HandleProcessCorruptedStateExceptions] (sender, args) =>
-        {
-            nint handle = new();
-            var window = _application.MainWindow;
-
-            if (window is not null)
-            {
-                WindowInteropHelper helper = new(window);
-                handle = helper.EnsureHandle();
-            }
-
-            var exception = (Exception)args.ExceptionObject;
-            while (exception.InnerException is not null) exception = exception.InnerException;
-
-            var title = handle > 0 ? "Error" : "Bedrock Updater";
-            ShellMessageBox(default, handle, exception.Message, title, MB_ICONERROR);
-            Environment.Exit(0);
-        };
+        AppDomain.CurrentDomain.UnhandledException += UnhandledException;
 
         using Mutex mutex = new(true, "C7B58EAD-356C-40A1-A145-7262C3C04D00", out bool value);
         if (!value) return;
