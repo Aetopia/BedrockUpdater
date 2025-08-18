@@ -38,6 +38,7 @@ static class Program
     static void Main(string[] args)
     {
         AppDomain.CurrentDomain.UnhandledException += UnhandledException;
+        
         CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
         CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
