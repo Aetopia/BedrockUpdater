@@ -25,7 +25,8 @@ static class Program
         }
 
         var exception = (Exception)args.ExceptionObject;
-        while (exception.InnerException is not null) exception = exception.InnerException;
+        while (exception.InnerException is not null)
+            exception = exception.InnerException;
 
         var title = handle > 0 ? "Error" : "Bedrock Updater";
         ShellMessageBox(default, handle, exception.Message, title, MB_ICONERROR);
