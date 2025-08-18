@@ -38,12 +38,11 @@ static class Program
     static void Main(string[] args)
     {
         AppDomain.CurrentDomain.UnhandledException += UnhandledException;
+        CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+        CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
         using Mutex mutex = new(false, "C7B58EAD-356C-40A1-A145-7262C3C04D00", out bool value);
         if (!value) return;
-
-        CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
-        CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
         value = args.Any(_ => _.Equals("/preview", StringComparison.OrdinalIgnoreCase));
         _application.Run(new Window(value));
