@@ -30,6 +30,7 @@ static class Program
 
         var title = handle > 0 ? "Error" : "Bedrock Updater";
         ShellMessageBox(default, handle, exception.Message, title, MB_ICONERROR);
+        
         Environment.Exit(0);
     }
 
