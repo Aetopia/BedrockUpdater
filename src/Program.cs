@@ -10,18 +10,18 @@ using System.Runtime.ExceptionServices;
 
 static class Program
 {
-    static readonly Application _application = new();
+    static Program() => AppDomain.CurrentDomain.UnhandledException += UnhandledException;
 
     [SecurityCritical, HandleProcessCorruptedStateExceptions]
     static void UnhandledException(object sender, UnhandledExceptionEventArgs args)
     {
-        nint handle = new();
-        var window = _application.MainWindow;
+        nint handle = 0;
 
-        if (window is not null)
+        var application = Application.Current;
+        if (application?.MainWindow is Window window)
         {
             WindowInteropHelper helper = new(window);
-            handle = helper.EnsureHandle();
+            handle = helper.Handle;
         }
 
         var exception = (Exception)args.ExceptionObject;
@@ -37,8 +37,6 @@ static class Program
     [STAThread]
     static void Main(string[] args)
     {
-        AppDomain.CurrentDomain.UnhandledException += UnhandledException;
-
         CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
         CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
@@ -46,6 +44,6 @@ static class Program
         if (!value) return;
 
         value = args.Any(_ => _.Equals("/preview", StringComparison.OrdinalIgnoreCase));
-        _application.Run(new Window(value));
+        new Application().Run(new Window(value));
     }
 }
