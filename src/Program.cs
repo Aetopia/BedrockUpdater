@@ -30,7 +30,7 @@ static class Program
 
         var title = handle > 0 ? "Error" : "Bedrock Updater";
         ShellMessageBox(default, handle, exception.Message, title, MB_ICONERROR);
-        
+
         Environment.Exit(0);
     }
 
@@ -39,7 +39,7 @@ static class Program
     {
         AppDomain.CurrentDomain.UnhandledException += UnhandledException;
 
-        using Mutex mutex = new(true, "C7B58EAD-356C-40A1-A145-7262C3C04D00", out bool value);
+        using Mutex mutex = new(false, "C7B58EAD-356C-40A1-A145-7262C3C04D00", out bool value);
         if (!value) return;
 
         CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
