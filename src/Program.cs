@@ -10,10 +10,7 @@ using System.Runtime.ExceptionServices;
 
 static class Program
 {
-    static Program() => AppDomain.CurrentDomain.UnhandledException += UnhandledException;
-
-    [SecurityCritical, HandleProcessCorruptedStateExceptions]
-    static void UnhandledException(object sender, UnhandledExceptionEventArgs args)
+    static Program() => AppDomain.CurrentDomain.UnhandledException += [SecurityCritical, HandleProcessCorruptedStateExceptions] (sender, args) =>
     {
         nint handle = 0;
 
@@ -32,7 +29,7 @@ static class Program
         ShellMessageBox(0, handle, exception.Message, title, MB_ICONERROR);
 
         Environment.Exit(1);
-    }
+    };
 
     [STAThread]
     static void Main(string[] args)
