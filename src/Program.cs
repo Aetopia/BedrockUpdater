@@ -29,16 +29,16 @@ static class Program
             exception = exception.InnerException;
 
         var title = handle > 0 ? "Error" : "Bedrock Updater";
-        ShellMessageBox(default, handle, exception.Message, title, MB_ICONERROR);
+        ShellMessageBox(0, handle, exception.Message, title, MB_ICONERROR);
 
-        Environment.Exit(0);
+        Environment.Exit(1);
     }
 
     [STAThread]
     static void Main(string[] args)
     {
         AppDomain.CurrentDomain.UnhandledException += UnhandledException;
-        
+
         CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
         CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
