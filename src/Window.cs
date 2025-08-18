@@ -98,6 +98,7 @@ sealed class Window : System.Windows.Window
                 _progressBar.IsIndeterminate = true;
             }
         }
+        
         Close();
     }
 
