@@ -1,13 +1,7 @@
 using System;
 using System.Windows;
-using Windows.Foundation;
 using System.Windows.Media;
-using System.Windows.Interop;
-using System.Threading.Tasks;
 using System.Windows.Controls;
-using Windows.Management.Deployment;
-using System.Runtime.InteropServices;
-using System.Collections.ObjectModel;
 
 sealed class Window : System.Windows.Window
 {
