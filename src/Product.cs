@@ -1,8 +1,14 @@
 sealed class Product
 {
-    internal readonly string ProductId, PackageFamilyName;
+    internal readonly string ProductId;
 
-    internal Product(string productId, string packageFamilyName) => (ProductId, PackageFamilyName) = (productId, packageFamilyName);
+    internal readonly string PackageFamilyName;
+
+    internal Product(string productId, string packageFamilyName)
+    {
+        ProductId = productId;
+        PackageFamilyName = packageFamilyName;
+    }
 
     internal static readonly Product Xbox = new("9WZDNCRD1HKW", "Microsoft.XboxIdentityProvider_8wekyb3d8bbwe");
 
