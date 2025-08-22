@@ -2,15 +2,13 @@ using System;
 using System.Linq;
 using static PInvoke;
 using System.Windows;
-using System.Security;
 using System.Threading;
 using System.Globalization;
 using System.Windows.Interop;
-using System.Runtime.ExceptionServices;
 
 static class Program
 {
-    static Program() => AppDomain.CurrentDomain.UnhandledException += [SecurityCritical, HandleProcessCorruptedStateExceptions] (sender, args) =>
+    static Program() => AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
     {
         nint handle = 0;
 
