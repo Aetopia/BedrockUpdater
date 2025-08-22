@@ -94,13 +94,13 @@ sealed class Window : System.Windows.Window
 
     void Action(double args) => Dispatcher.Invoke(() =>
     {
-        if (_progressBar.Value != args)
-        {
-            if (_progressBar.IsIndeterminate)
-                _progressBar.IsIndeterminate = false;
+        if (_progressBar.Value == args)
+            return;
 
-            _progressBar.Value = args;
-            _textBlock2.Text = $"Preparing {args}%..";
-        }
+        if (_progressBar.IsIndeterminate)
+            _progressBar.IsIndeterminate = false;
+
+        _progressBar.Value = args;
+        _textBlock2.Text = $"Preparing {args}%..";
     });
 }
