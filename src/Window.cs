@@ -58,13 +58,6 @@ sealed class Window : System.Windows.Window
         _textBlock1.Text = _text;
     }
 
-    protected override void OnClosed(EventArgs args)
-    {
-        base.OnClosed(args);
-        using (_request) _request?.Cancel();
-        Environment.Exit(0);
-    }
-
     protected override async void OnContentRendered(EventArgs args)
     {
         base.OnContentRendered(args);
@@ -90,6 +83,13 @@ sealed class Window : System.Windows.Window
         }
 
         Close();
+    }
+
+    protected override void OnClosed(EventArgs args)
+    {
+        base.OnClosed(args);
+        using (_request) _request?.Cancel();
+        Environment.Exit(0);
     }
 
     void Action(double args) => Dispatcher.Invoke(() =>
