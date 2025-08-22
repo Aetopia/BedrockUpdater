@@ -33,8 +33,8 @@ sealed class Window : System.Windows.Window
         Title = "Bedrock Updater";
         Icon = global::Resources.GetImageSource("Application.ico");
 
-        SnapsToDevicePixels = true;
         UseLayoutRounding = true;
+        SnapsToDevicePixels = true;
         ResizeMode = ResizeMode.NoResize;
 
         SizeToContent = SizeToContent.WidthAndHeight;
