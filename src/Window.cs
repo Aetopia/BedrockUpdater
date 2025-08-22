@@ -13,8 +13,8 @@ sealed class Window : System.Windows.Window
     {
         Width = 359,
         Height = 23,
-        BorderThickness = default,
         IsIndeterminate = true,
+        BorderThickness = new(),
         Foreground = new SolidColorBrush(Color.FromRgb(0, 133, 66)),
         Background = new SolidColorBrush(Color.FromRgb(14, 14, 14))
     };
