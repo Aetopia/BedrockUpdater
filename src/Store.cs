@@ -75,7 +75,8 @@ static class Store
                     break;
 
                 case Canceled:
-                    if (!task.IsFaulted) source.TrySetCanceled();
+                    if (!task.IsFaulted)
+                        source.TrySetCanceled();
                     break;
             }
         };
