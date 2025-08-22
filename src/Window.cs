@@ -19,11 +19,11 @@ sealed class Window : System.Windows.Window
         Background = new SolidColorBrush(Color.FromRgb(14, 14, 14))
     };
 
+    Request? _request;
+
     readonly string _text;
 
     readonly Product[] _products;
-
-    Request? _request = null;
 
     internal Window(bool value)
     {
