@@ -6,11 +6,7 @@ using Windows.ApplicationModel.Store.Preview.InstallControl;
 
 sealed class Request : IDisposable
 {
-    internal Request(AppInstallItem item, Task task)
-    {
-        (_item, _task) = (item, task);
-        _handle = ((IAsyncResult)_task).AsyncWaitHandle;
-    }
+    bool _disposed;
 
     readonly Task _task;
 
@@ -18,19 +14,42 @@ sealed class Request : IDisposable
 
     readonly AppInstallItem _item;
 
-    internal TaskAwaiter GetAwaiter() => _task.GetAwaiter();
+    internal Request(AppInstallItem item, Task task)
+    {
+        _item = item;
+        _task = task;
+
+        var result = (IAsyncResult)_task;
+        _handle = result.AsyncWaitHandle;
+    }
+
+    internal TaskAwaiter GetAwaiter()
+    {
+        if (_disposed)
+            throw new ObjectDisposedException(null);
+
+        return _task.GetAwaiter();
+    }
 
     internal void Cancel()
     {
-        try
-        {
-            _item.Cancel();
-            _handle.WaitOne();
-        }
-        catch { }
+        if (_disposed)
+            throw new ObjectDisposedException(null);
+
+        if (_task.IsCompleted)
+            return;
+
+        _item.Cancel();
+        _handle.WaitOne();
     }
 
-    public void Dispose() => _task.Dispose();
+    public void Dispose()
+    {
+        GC.SuppressFinalize(this);
 
-    ~Request() { GC.SuppressFinalize(this); Dispose(); }
+        _disposed = true;
+        _handle.Dispose();
+    }
+
+    ~Request() => Dispose();
 }
