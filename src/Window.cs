@@ -5,16 +5,9 @@ using System.Windows.Controls;
 
 sealed class Window : System.Windows.Window
 {
-    readonly TextBlock _textBlock1 = new()
-    {
-        Foreground = Brushes.White
-    };
+    readonly TextBlock _textBlock1 = new() { Foreground = Brushes.White };
 
-    readonly TextBlock _textBlock2 = new()
-    {
-        Text = "Preparing...",
-        Foreground = Brushes.White
-    };
+    readonly TextBlock _textBlock2 = new() { Text = "Preparing...", Foreground = Brushes.White };
 
     readonly ProgressBar _progressBar = new()
     {
@@ -48,11 +41,7 @@ sealed class Window : System.Windows.Window
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         Background = new SolidColorBrush(Color.FromRgb(30, 30, 30));
 
-        Canvas _canvas = new()
-        {
-            Width = 381,
-            Height = 115
-        };
+        Canvas _canvas = new() { Width = 381, Height = 115 };
 
         _canvas.Children.Add(_textBlock1);
         _canvas.Children.Add(_textBlock2);
