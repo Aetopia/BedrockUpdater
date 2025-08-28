@@ -75,11 +75,10 @@ sealed class Window : System.Windows.Window
             _request = null;
 
             if (!_progressBar.IsIndeterminate)
-            {
-                _progressBar.Value = 0;
-                _textBlock2.Text = $"Preparing...";
                 _progressBar.IsIndeterminate = true;
-            }
+
+            _progressBar.Value = 0;
+            _textBlock2.Text = $"Preparing...";
         }
 
         Close();
@@ -101,6 +100,6 @@ sealed class Window : System.Windows.Window
             _progressBar.IsIndeterminate = false;
 
         _progressBar.Value = args;
-        _textBlock2.Text = $"Preparing {args}%..";
+        _textBlock2.Text = $"Preparing... {args}%";
     });
 }
