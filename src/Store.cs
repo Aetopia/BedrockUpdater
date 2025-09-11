@@ -65,7 +65,9 @@ static class Store
 
         item.Completed += (sender, args) =>
         {
-            var status = sender.GetCurrentStatus(); switch (status.InstallState)
+            var status = sender.GetCurrentStatus();
+
+            switch (status.InstallState)
             {
                 case Completed:
                     source.TrySetResult(new());
