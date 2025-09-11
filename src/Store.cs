@@ -51,7 +51,7 @@ static class Store
         return item;
     }
 
-    internal static async Task<Request?> GetAsync(Product product, Action<double> action)
+    internal static async Task<Request?> GetAsync(Product product, Action<AppInstallStatus> action)
     {
         var item = await GetItemAsync(product);
         if (item is null) return null;
@@ -83,13 +83,10 @@ static class Store
 
         item.StatusChanged += (sender, args) =>
         {
-            var status = sender.GetCurrentStatus();
-            var state = status.InstallState;
-
-            switch (state)
+            var status = sender.GetCurrentStatus(); switch (status.InstallState)
             {
                 default:
-                    action(status.PercentComplete);
+                    action(status);
                     break;
 
                 case Error:

@@ -2,6 +2,7 @@ using System;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Controls;
+using Windows.ApplicationModel.Store.Preview.InstallControl;
 
 sealed class Window : System.Windows.Window
 {
@@ -28,7 +29,7 @@ sealed class Window : System.Windows.Window
     internal Window(bool value)
     {
         _text = value ? "Updating Preview..." : "Updating Release...";
-        _products = [Product.Xbox, value ? Product.Preview : Product.Release];
+        _products = [value ? Product.GamingServices : Product.XboxIdentityProvider, value ? Product.MinecraftWindowsBeta : Product.MinecraftUWP];
 
         Title = "Bedrock Updater";
         Icon = global::Resources.GetImageSource("Application.ico");
@@ -62,10 +63,9 @@ sealed class Window : System.Windows.Window
     {
         base.OnContentRendered(args);
 
-        var length = _products.Length;
-        for (var index = 0; index < length; index++)
+        for (var index = 0; index < _products.Length; index++)
         {
-            _textBlock1.Text = $"{_text} {index + 1} / {length}";
+            _textBlock1.Text = $"{_text} {index + 1} / {_products.Length}";
 
             var product = _products[index];
             _request = await Store.GetAsync(product, Action);
@@ -91,15 +91,16 @@ sealed class Window : System.Windows.Window
         Environment.Exit(0);
     }
 
-    void Action(double args) => Dispatcher.Invoke(() =>
+    void Action(AppInstallStatus args) => Dispatcher.Invoke(() =>
     {
-        if (_progressBar.Value == args)
-            return;
+        if (_progressBar.Value == args.PercentComplete) return;
+        if (_progressBar.IsIndeterminate) _progressBar.IsIndeterminate = false;
 
-        if (_progressBar.IsIndeterminate)
-            _progressBar.IsIndeterminate = false;
-
-        _progressBar.Value = args;
-        _textBlock2.Text = $"Preparing... {args}%";
+        _progressBar.Value = args.PercentComplete;
+        _textBlock2.Text = args.InstallState switch
+        {
+            AppInstallState.Downloading => $"Preparing... {args.BytesDownloaded} / {args.DownloadSizeInBytes}",
+            _ => $"Preparing... {args.PercentComplete}%"
+        };
     });
 }

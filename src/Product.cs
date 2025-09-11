@@ -6,14 +6,21 @@ sealed class Product
         PackageFamilyName = packageFamilyName;
     }
 
-    static Product()
-    {
-        Release = new("9NBLGGH2JHXJ", "Microsoft.MinecraftUWP_8wekyb3d8bbwe");
-        Xbox = new("9WZDNCRD1HKW", "Microsoft.XboxIdentityProvider_8wekyb3d8bbwe");
-        Preview = new("9P5X4QVLC2XR", "Microsoft.MinecraftWindowsBeta_8wekyb3d8bbwe");
-    }
-
     internal readonly string ProductId, PackageFamilyName;
 
-    internal static readonly Product Xbox, Release, Preview;
+    static Product()
+    {
+        MinecraftUWP = new("9NBLGGH2JHXJ", "Microsoft.MinecraftUWP_8wekyb3d8bbwe");
+        GamingServices = new("9MWPM2CQNLHN", "Microsoft.GamingServices_8wekyb3d8bbwe");
+        XboxIdentityProvider = new("9WZDNCRD1HKW", "Microsoft.XboxIdentityProvider_8wekyb3d8bbwe");
+        MinecraftWindowsBeta = new("9P5X4QVLC2XR", "Microsoft.MinecraftWindowsBeta_8wekyb3d8bbwe");
+    }
+
+    internal static readonly Product MinecraftUWP;
+
+    internal static readonly Product GamingServices;
+
+    internal static readonly Product XboxIdentityProvider;
+
+    internal static readonly Product MinecraftWindowsBeta;
 }
