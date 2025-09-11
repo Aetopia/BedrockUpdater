@@ -96,8 +96,8 @@ sealed class Window : System.Windows.Window
     static string Stringify(double value)
     {
         var x = Math.Abs(value);
-        var y = (int)Math.Log(x, 1024);
-        return $"{x / Math.Pow(1024, y):#.##} {(Unit)y}";
+        var y = (int)Math.Log(Math.Max(x, 1), 1024);
+        return $"{x / Math.Pow(1024, y):0.##} {(Unit)y}";
     }
 
     void Action(AppInstallStatus args) => Dispatcher.Invoke(() =>
@@ -106,10 +106,11 @@ sealed class Window : System.Windows.Window
         if (_progressBar.IsIndeterminate) _progressBar.IsIndeterminate = false;
 
         _progressBar.Value = args.PercentComplete;
+
         _textBlock2.Text = args.InstallState switch
         {
             AppInstallState.Downloading => $"Preparing... {Stringify(args.BytesDownloaded)} / {Stringify(args.DownloadSizeInBytes)}",
-            _ => $"Preparing... {args.PercentComplete}%"
+            _ => $"Preparing... {args.PercentComplete}%",
         };
     });
 }
