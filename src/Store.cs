@@ -82,7 +82,9 @@ static class Store
 
         item.StatusChanged += (sender, args) =>
         {
-            var status = sender.GetCurrentStatus(); switch (status.InstallState)
+            var status = sender.GetCurrentStatus();
+
+            switch (status.InstallState)
             {
                 default:
                     action(status);
