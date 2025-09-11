@@ -93,7 +93,7 @@ sealed class Window : System.Windows.Window
         Environment.Exit(0);
     }
 
-    public static string Stringify(double value)
+    static string Stringify(double value)
     {
         var x = Math.Abs(value);
         var y = (int)Math.Log(x, 1024);
