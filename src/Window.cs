@@ -6,6 +6,8 @@ using Windows.ApplicationModel.Store.Preview.InstallControl;
 
 sealed class Window : System.Windows.Window
 {
+    enum Unit { B, KB, MB, GB }
+
     readonly TextBlock _textBlock1 = new() { Foreground = Brushes.White };
 
     readonly TextBlock _textBlock2 = new() { Text = "Preparing...", Foreground = Brushes.White };
@@ -91,6 +93,13 @@ sealed class Window : System.Windows.Window
         Environment.Exit(0);
     }
 
+    public static string Stringify(double value)
+    {
+        var x = Math.Abs(value);
+        var y = (int)Math.Log(x, 1024);
+        return $"{x / Math.Pow(1024, y):#.##} {(Unit)y}";
+    }
+
     void Action(AppInstallStatus args) => Dispatcher.Invoke(() =>
     {
         if (_progressBar.Value == args.PercentComplete) return;
@@ -99,7 +108,7 @@ sealed class Window : System.Windows.Window
         _progressBar.Value = args.PercentComplete;
         _textBlock2.Text = args.InstallState switch
         {
-            AppInstallState.Downloading => $"Preparing... {args.BytesDownloaded} / {args.DownloadSizeInBytes}",
+            AppInstallState.Downloading => $"Preparing... {Stringify(args.BytesDownloaded)} / {Stringify(args.DownloadSizeInBytes)}",
             _ => $"Preparing... {args.PercentComplete}%"
         };
     });
