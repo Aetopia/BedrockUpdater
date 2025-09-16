@@ -72,14 +72,14 @@ sealed class Window : System.Windows.Window
             var product = _products[index];
             _request = await Store.GetAsync(product, Action);
 
-            if (_request is null) continue;
-            using (_request) await _request;
-            _request = null;
-
-            if (!_progressBar.IsIndeterminate)
-                _progressBar.IsIndeterminate = true;
-
+            if (_request is not null)
+            {
+                using (_request) await _request;
+                _request = null;
+            }
+            
             _progressBar.Value = 0;
+            _progressBar.IsIndeterminate = true;
             _textBlock2.Text = $"Preparing...";
         }
 
@@ -102,15 +102,16 @@ sealed class Window : System.Windows.Window
 
     void Action(AppInstallStatus args) => Dispatcher.Invoke(() =>
     {
-        if (_progressBar.Value == args.PercentComplete) return;
-        if (_progressBar.IsIndeterminate) _progressBar.IsIndeterminate = false;
-
-        _progressBar.Value = args.PercentComplete;
+        if (_progressBar.Value != args.PercentComplete)
+        {
+            _progressBar.IsIndeterminate = false;
+            _progressBar.Value = args.PercentComplete;
+        }
 
         _textBlock2.Text = args.InstallState switch
         {
             AppInstallState.Downloading => $"Preparing... {Stringify(args.BytesDownloaded)} / {Stringify(args.DownloadSizeInBytes)}",
-            _ => $"Preparing... {args.PercentComplete}%",
+            _ => $"Preparing... {args.PercentComplete}%"
         };
     });
 }

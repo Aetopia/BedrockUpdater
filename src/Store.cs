@@ -56,18 +56,15 @@ static class Store
         var item = await GetItemAsync(product);
         if (item is null) return null;
 
-        _manager.MoveToFrontOfDownloadQueue(item.ProductId, string.Empty);
-
         TaskCompletionSource<bool> source = new();
+        _manager.MoveToFrontOfDownloadQueue(item.ProductId, string.Empty);
 
         var task = source.Task;
         _ = task.ContinueWith(_ => item.Cancel(), OnlyOnFaulted | ExecuteSynchronously);
 
         item.Completed += (sender, args) =>
         {
-            var status = sender.GetCurrentStatus();
-
-            switch (status.InstallState)
+            switch (sender.GetCurrentStatus().InstallState)
             {
                 case Completed:
                     source.TrySetResult(new());
@@ -83,7 +80,6 @@ static class Store
         item.StatusChanged += (sender, args) =>
         {
             var status = sender.GetCurrentStatus();
-
             switch (status.InstallState)
             {
                 default:
