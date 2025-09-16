@@ -77,7 +77,7 @@ sealed class Window : System.Windows.Window
                 using (_request) await _request;
                 _request = null;
             }
-            
+
             _progressBar.Value = 0;
             _progressBar.IsIndeterminate = true;
             _textBlock2.Text = $"Preparing...";
@@ -111,7 +111,7 @@ sealed class Window : System.Windows.Window
         _textBlock2.Text = args.InstallState switch
         {
             AppInstallState.Downloading => $"Preparing... {Stringify(args.BytesDownloaded)} / {Stringify(args.DownloadSizeInBytes)}",
-            _ => $"Preparing... {args.PercentComplete}%"
+            _ => $"Preparing..."
         };
     });
 }
