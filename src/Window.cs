@@ -22,7 +22,7 @@ sealed class Window : System.Windows.Window
         Background = new SolidColorBrush(Color.FromRgb(14, 14, 14))
     };
 
-    Request? _request;
+    Store.Request? _request;
 
     readonly string _text;
 
