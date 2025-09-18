@@ -77,8 +77,11 @@ sealed class Window : System.Windows.Window
             var product = _products[index];
             _request = await Store.GetAsync(product, Action);
 
-            if (_request is Store.Request request)
-                using (request) if (!await request) Close();
+            if (_request is not null)
+            {
+                using var request = _request;
+                if (!await request) Close();
+            }
 
             _request = null;
             _progressBar.Value = 0;
