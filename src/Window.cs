@@ -1,8 +1,11 @@
 using System;
 using System.Windows;
 using System.Windows.Media;
+using System.ComponentModel;
 using System.Windows.Controls;
 using Windows.ApplicationModel.Store.Preview.InstallControl;
+using static Windows.ApplicationModel.Store.Preview.InstallControl.AppInstallState;
+using System.Threading.Tasks;
 
 sealed class Window : System.Windows.Window
 {
@@ -67,17 +70,17 @@ sealed class Window : System.Windows.Window
 
         for (var index = 0; index < _products.Length; index++)
         {
+            await Task.Yield();
+
             _textBlock1.Text = $"{_text} {index + 1} / {_products.Length}";
 
             var product = _products[index];
             _request = await Store.GetAsync(product, Action);
 
-            if (_request is not null)
-            {
-                using (_request) await _request;
-                _request = null;
-            }
+            if (_request is Store.Request request)
+                using (request) if (!await request) Close();
 
+            _request = null;
             _progressBar.Value = 0;
             _progressBar.IsIndeterminate = true;
             _textBlock2.Text = $"Preparing...";
@@ -86,11 +89,16 @@ sealed class Window : System.Windows.Window
         Close();
     }
 
-    protected override void OnClosed(EventArgs args)
+    protected override void OnClosing(CancelEventArgs args)
     {
-        base.OnClosed(args);
-        using (_request) _request?.Cancel();
-        Environment.Exit(0);
+        base.OnClosing(args);
+
+        _request?.Cancel();
+        args.Cancel = _request is not null;
+
+        _progressBar.Value = 0;
+        _progressBar.IsIndeterminate = true;
+        _textBlock2.Text = "Cancelling...";
     }
 
     static string Stringify(double value)
@@ -110,7 +118,7 @@ sealed class Window : System.Windows.Window
 
         _textBlock2.Text = args.InstallState switch
         {
-            AppInstallState.Downloading => $"Preparing... {Stringify(args.BytesDownloaded)} / {Stringify(args.DownloadSizeInBytes)}",
+            Downloading => $"Downloading... {Stringify(args.BytesDownloaded)} / {Stringify(args.DownloadSizeInBytes)}",
             _ => $"Preparing..."
         };
     });

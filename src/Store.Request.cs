@@ -12,7 +12,7 @@ partial class Store
     {
         bool _disposed;
 
-        readonly Task _task;
+        readonly Task<bool> _task;
 
         readonly WaitHandle _handle;
 
@@ -68,14 +68,11 @@ partial class Store
             if (_disposed)
                 throw new ObjectDisposedException(null);
 
-            if (_task.IsCompleted)
-                return;
-
-            _item.Cancel();
-            _handle.WaitOne();
+            if (!_task.IsCompleted)
+                _item.Cancel();
         }
 
-        internal TaskAwaiter GetAwaiter()
+        internal TaskAwaiter<bool> GetAwaiter()
         {
             if (_disposed)
                 throw new ObjectDisposedException(null);
@@ -97,12 +94,12 @@ partial class Store
             switch (state)
             {
                 case Completed:
-                    _source.TrySetResult(new());
+                    _source.TrySetResult(true);
                     break;
 
                 case Canceled:
                     if (!_task.IsFaulted)
-                        _source.TrySetCanceled();
+                        _source.TrySetResult(false);
                     break;
             }
         }
