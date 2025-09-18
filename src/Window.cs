@@ -5,15 +5,21 @@ using System.ComponentModel;
 using System.Windows.Controls;
 using Windows.ApplicationModel.Store.Preview.InstallControl;
 using static Windows.ApplicationModel.Store.Preview.InstallControl.AppInstallState;
-using System.Threading.Tasks;
 
 sealed class Window : System.Windows.Window
 {
     enum Unit { B, KB, MB, GB }
 
-    readonly TextBlock _textBlock1 = new() { Foreground = Brushes.White };
+    readonly TextBlock _textBlock1 = new()
+    {
+        Foreground = Brushes.White
+    };
 
-    readonly TextBlock _textBlock2 = new() { Text = "Preparing...", Foreground = Brushes.White };
+    readonly TextBlock _textBlock2 = new()
+    {
+        Text = "Preparing...",
+        Foreground = Brushes.White
+    };
 
     readonly ProgressBar _progressBar = new()
     {
@@ -70,18 +76,11 @@ sealed class Window : System.Windows.Window
 
         for (var index = 0; index < _products.Length; index++)
         {
-            await Task.Yield();
-
             _textBlock1.Text = $"{_text} {index + 1} / {_products.Length}";
 
             var product = _products[index];
             _request = await Store.GetAsync(product, Action);
-
-            if (_request is not null)
-            {
-                using var request = _request;
-                if (!await request) Close();
-            }
+            if (_request is { } @_) using (_) if (!await _) Close();
 
             _request = null;
             _progressBar.Value = 0;
@@ -95,13 +94,17 @@ sealed class Window : System.Windows.Window
     protected override void OnClosing(CancelEventArgs args)
     {
         base.OnClosing(args);
+        if (_request is not null)
+        {
 
-        _request?.Cancel();
-        args.Cancel = _request is not null;
+            _request.Cancel();
 
-        _progressBar.Value = 0;
-        _progressBar.IsIndeterminate = true;
-        _textBlock2.Text = "Cancelling...";
+            _progressBar.Value = 0;
+            _progressBar.IsIndeterminate = true;
+            _textBlock2.Text = "Cancelling...";
+
+            args.Cancel = false;
+        }
     }
 
     static string Stringify(double value)
