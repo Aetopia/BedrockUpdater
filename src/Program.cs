@@ -11,7 +11,7 @@ static class Program
     static Program() => AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
     {
         nint handle = 0;
-        
+
         if (Application.Current?.MainWindow is { } @_)
         {
             WindowInteropHelper helper = new(_);
@@ -38,6 +38,6 @@ static class Program
         if (!value) return;
 
         value = args.Any(_ => _.Equals("/preview", StringComparison.OrdinalIgnoreCase));
-        new Application().Run(new Window(value));
+        new Application { ShutdownMode = ShutdownMode.OnMainWindowClose }.Run(new Window(value));
     }
 }
