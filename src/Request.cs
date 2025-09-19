@@ -15,8 +15,6 @@ partial class Store
         readonly Action<AppInstallStatus> _action;
 
         readonly TaskCompletionSource<bool> _source;
-
-        internal bool Completed => _task.IsCompleted;
     }
 }
 
@@ -32,8 +30,8 @@ partial class Store
             _source = new();
             _task = _source.Task;
 
-            _item.Completed += OnCompleted;
-            _item.StatusChanged += OnStatusChanged;
+            _item.Completed += Completed;
+            _item.StatusChanged += StatusChanged;
             _ = _task.ContinueWith(ContinuationAction, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
         }
     }
@@ -59,7 +57,7 @@ partial class Store
 {
     partial class Request
     {
-        void OnCompleted(AppInstallItem sender, object args)
+        void Completed(AppInstallItem sender, object args)
         {
             switch (sender.GetCurrentStatus().InstallState)
             {
@@ -74,7 +72,7 @@ partial class Store
             }
         }
 
-        void OnStatusChanged(AppInstallItem sender, object args)
+        void StatusChanged(AppInstallItem sender, object args)
         {
             var status = sender.GetCurrentStatus();
             switch (status.InstallState)
