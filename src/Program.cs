@@ -11,11 +11,10 @@ static class Program
     static Program() => AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
     {
         nint handle = 0;
-
-        var application = Application.Current;
-        if (application?.MainWindow is Window window)
+        
+        if (Application.Current?.MainWindow is { } @_)
         {
-            WindowInteropHelper helper = new(window);
+            WindowInteropHelper helper = new(_);
             handle = helper.Handle;
         }
 
