@@ -1,12 +1,11 @@
 using System;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
 using Windows.ApplicationModel.Store.Preview.InstallControl;
 
 partial class Store
 {
-    internal sealed partial class Request
+    internal sealed class Request
     {
         readonly Task<bool> _task;
 
@@ -15,13 +14,7 @@ partial class Store
         readonly Action<AppInstallStatus> _action;
 
         readonly TaskCompletionSource<bool> _source;
-    }
-}
 
-partial class Store
-{
-    partial class Request
-    {
         internal Request(AppInstallItem item, Action<AppInstallStatus> action)
         {
             _item = item;
@@ -34,13 +27,7 @@ partial class Store
             _item.StatusChanged += StatusChanged;
             _ = _task.ContinueWith(ContinuationAction, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
         }
-    }
-}
 
-partial class Store
-{
-    partial class Request
-    {
         void ContinuationAction(Task task) => _item.Cancel();
 
         internal bool Cancel()
@@ -50,13 +37,7 @@ partial class Store
         }
 
         internal TaskAwaiter<bool> GetAwaiter() => _task.GetAwaiter();
-    }
-}
 
-partial class Store
-{
-    partial class Request
-    {
         void Completed(AppInstallItem sender, object args)
         {
             switch (sender.GetCurrentStatus().InstallState)
