@@ -107,7 +107,9 @@ partial class Store
         void OnStatusChanged(AppInstallItem sender, object args)
         {
             var status = sender.GetCurrentStatus();
-            switch (status.InstallState)
+            var state = status.InstallState;
+
+            switch (state)
             {
                 default:
                     _action(status);
