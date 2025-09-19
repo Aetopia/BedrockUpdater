@@ -19,16 +19,12 @@ partial class Store
 
         internal Request(AppInstallItem item, Action<AppInstallStatus> action)
         {
-            _item = item;
-            _action = action;
-
-            _source = new();
-            _task = _source.Task;
-
-            _item.Completed += OnCompleted;
-            _item.StatusChanged += OnStatusChanged;
-
             _manager.MoveToFrontOfDownloadQueue(item.ProductId, string.Empty);
+
+            _item = item; _action = action;
+            _source = new(); _task = _source.Task;
+
+            _item.Completed += OnCompleted; _item.StatusChanged += OnStatusChanged;
             _ = _task.ContinueWith(Action, OnlyOnFaulted | ExecuteSynchronously);
         }
 
