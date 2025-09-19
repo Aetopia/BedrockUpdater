@@ -82,7 +82,7 @@ sealed class Window : System.Windows.Window
             _request = await Store.GetAsync(product, Action);
 
             if (_request is { } @_)
-                using (_) if (!await _) Close();
+                if (!await _) Close();
 
             _request = null;
             _progressBar.Value = 0;
@@ -98,7 +98,6 @@ sealed class Window : System.Windows.Window
         base.OnClosing(args);
         if (_request is not null)
         {
-
             _request.Cancel();
 
             _progressBar.Value = 0;

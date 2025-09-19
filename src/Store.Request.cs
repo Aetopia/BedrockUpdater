@@ -10,11 +10,7 @@ partial class Store
 {
     internal sealed partial class Request
     {
-        bool _disposed;
-
         readonly Task<bool> _task;
-
-        readonly WaitHandle _handle;
 
         readonly AppInstallItem _item;
 
@@ -26,36 +22,20 @@ partial class Store
 
 partial class Store
 {
-    partial class Request : IDisposable
+    partial class Request
     {
         internal Request(AppInstallItem item, Action<AppInstallStatus> action)
         {
             _item = item;
-            _source = new();
             _action = action;
-            _task = _source.Task;
 
-            var result = (IAsyncResult)_task;
-            _handle = result.AsyncWaitHandle;
+            _source = new();
+            _task = _source.Task;
 
             _item.Completed += OnCompleted;
             _item.StatusChanged += OnStatusChanged;
-            _ = _task.ContinueWith(OnFaulted, OnlyOnFaulted | ExecuteSynchronously);
+            _ = _task.ContinueWith(ContinuationAction, OnlyOnFaulted | ExecuteSynchronously);
         }
-
-        public void Dispose()
-        {
-            _disposed = true;
-            GC.SuppressFinalize(this);
-
-            _handle.Dispose();
-            _item.Completed -= OnCompleted;
-            _item.StatusChanged -= OnStatusChanged;
-        }
-
-        void OnFaulted(Task args) => _item.Cancel();
-
-        ~Request() => Dispose();
     }
 }
 
@@ -63,22 +43,11 @@ partial class Store
 {
     partial class Request
     {
-        internal void Cancel()
-        {
-            if (_disposed)
-                throw new ObjectDisposedException(null);
+        void ContinuationAction(Task task) => _item.Cancel();
 
-            if (!_task.IsCompleted)
-                _item.Cancel();
-        }
+        internal void Cancel() { if (!_task.IsCompleted) _item.Cancel(); }
 
-        internal TaskAwaiter<bool> GetAwaiter()
-        {
-            if (_disposed)
-                throw new ObjectDisposedException(null);
-
-            return _task.GetAwaiter();
-        }
+        internal TaskAwaiter<bool> GetAwaiter() => _task.GetAwaiter();
     }
 }
 
@@ -88,10 +57,7 @@ partial class Store
     {
         void OnCompleted(AppInstallItem sender, object args)
         {
-            var status = sender.GetCurrentStatus();
-            var state = status.InstallState;
-
-            switch (state)
+            switch (sender.GetCurrentStatus().InstallState)
             {
                 case Completed:
                     _source.TrySetResult(true);
@@ -107,9 +73,7 @@ partial class Store
         void OnStatusChanged(AppInstallItem sender, object args)
         {
             var status = sender.GetCurrentStatus();
-            var state = status.InstallState;
-
-            switch (state)
+            switch (status.InstallState)
             {
                 default:
                     _action(status);
