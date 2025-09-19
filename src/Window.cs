@@ -31,9 +31,9 @@ sealed class Window : System.Windows.Window
         Background = new SolidColorBrush(Color.FromRgb(14, 14, 14))
     };
 
-    Store.Request? _request;
-
     readonly string _text;
+
+    Store.Request? _request;
 
     readonly Product[] _products;
 
