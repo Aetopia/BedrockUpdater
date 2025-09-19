@@ -4,6 +4,7 @@ using System.Windows.Media;
 using System.ComponentModel;
 using System.Windows.Controls;
 using Windows.ApplicationModel.Store.Preview.InstallControl;
+using static Windows.ApplicationModel.Store.Preview.InstallControl.AppInstallState;
 
 sealed class Window : System.Windows.Window
 {
@@ -118,7 +119,7 @@ sealed class Window : System.Windows.Window
 
         _textBlock2.Text = args.InstallState switch
         {
-            AppInstallState.Downloading => $"Downloading... {Stringify(args.BytesDownloaded)} / {Stringify(args.DownloadSizeInBytes)}",
+            Downloading => $"Downloading... {Stringify(args.BytesDownloaded)} / {Stringify(args.DownloadSizeInBytes)}",
             _ => $"Preparing..."
         };
     });
