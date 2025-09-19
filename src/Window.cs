@@ -104,7 +104,7 @@ sealed class Window : System.Windows.Window
             _progressBar.IsIndeterminate = true;
             _textBlock2.Text = "Cancelling...";
 
-            args.Cancel = false;
+            args.Cancel = true;
         }
     }
 
