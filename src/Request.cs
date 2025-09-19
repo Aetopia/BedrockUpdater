@@ -25,6 +25,8 @@ partial class Store
 
             _item.Completed += Completed;
             _item.StatusChanged += StatusChanged;
+
+            _manager.MoveToFrontOfDownloadQueue(item.ProductId, string.Empty);
             _ = _task.ContinueWith(ContinuationAction, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
         }
 
