@@ -4,7 +4,6 @@ using System.Windows.Media;
 using System.ComponentModel;
 using System.Windows.Controls;
 using Windows.ApplicationModel.Store.Preview.InstallControl;
-using static Windows.ApplicationModel.Store.Preview.InstallControl.AppInstallState;
 
 sealed class Window : System.Windows.Window
 {
@@ -70,6 +69,18 @@ sealed class Window : System.Windows.Window
         _textBlock1.Text = _text;
     }
 
+    protected override void OnClosing(CancelEventArgs args)
+    {
+        base.OnClosing(args);
+
+        _textBlock2.Text = "Cancelling...";
+
+        _progressBar.Value = 0;
+        _progressBar.IsIndeterminate = true;
+
+        args.Cancel = _request?.Cancel() ?? false;
+    }
+
     protected override async void OnContentRendered(EventArgs args)
     {
         base.OnContentRendered(args);
@@ -78,11 +89,8 @@ sealed class Window : System.Windows.Window
         {
             _textBlock1.Text = $"{_text} {index + 1} / {_products.Length}";
 
-            var product = _products[index];
-            _request = await Store.GetAsync(product, Action);
-
-            if (_request is { } @_)
-                if (!await _) Close();
+            _request = await Store.GetAsync(_products[index], Action);
+            if (_request is { } @_) if (!await _) Close();
 
             _request = null;
             _progressBar.Value = 0;
@@ -91,21 +99,6 @@ sealed class Window : System.Windows.Window
         }
 
         Close();
-    }
-
-    protected override void OnClosing(CancelEventArgs args)
-    {
-        base.OnClosing(args);
-        if (_request is not null)
-        {
-            _request.Cancel();
-
-            _progressBar.Value = 0;
-            _progressBar.IsIndeterminate = true;
-            _textBlock2.Text = "Cancelling...";
-
-            args.Cancel = true;
-        }
     }
 
     static string Stringify(double value)
@@ -125,7 +118,7 @@ sealed class Window : System.Windows.Window
 
         _textBlock2.Text = args.InstallState switch
         {
-            Downloading => $"Downloading... {Stringify(args.BytesDownloaded)} / {Stringify(args.DownloadSizeInBytes)}",
+            AppInstallState.Downloading => $"Downloading... {Stringify(args.BytesDownloaded)} / {Stringify(args.DownloadSizeInBytes)}",
             _ => $"Preparing..."
         };
     });

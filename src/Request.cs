@@ -2,9 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
-using static System.Threading.Tasks.TaskContinuationOptions;
 using Windows.ApplicationModel.Store.Preview.InstallControl;
-using static Windows.ApplicationModel.Store.Preview.InstallControl.AppInstallState;
 
 partial class Store
 {
@@ -17,6 +15,8 @@ partial class Store
         readonly Action<AppInstallStatus> _action;
 
         readonly TaskCompletionSource<bool> _source;
+
+        internal bool Completed => _task.IsCompleted;
     }
 }
 
@@ -34,7 +34,7 @@ partial class Store
 
             _item.Completed += OnCompleted;
             _item.StatusChanged += OnStatusChanged;
-            _ = _task.ContinueWith(ContinuationAction, OnlyOnFaulted | ExecuteSynchronously);
+            _ = _task.ContinueWith(ContinuationAction, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
         }
     }
 }
@@ -45,7 +45,11 @@ partial class Store
     {
         void ContinuationAction(Task task) => _item.Cancel();
 
-        internal void Cancel() { if (!_task.IsCompleted) _item.Cancel(); }
+        internal bool Cancel()
+        {
+            if (_task.IsCompleted) return false;
+            _item.Cancel(); return true;
+        }
 
         internal TaskAwaiter<bool> GetAwaiter() => _task.GetAwaiter();
     }
@@ -59,11 +63,11 @@ partial class Store
         {
             switch (sender.GetCurrentStatus().InstallState)
             {
-                case Completed:
+                case AppInstallState.Completed:
                     _source.TrySetResult(true);
                     break;
 
-                case Canceled:
+                case AppInstallState.Canceled:
                     if (!_task.IsFaulted)
                         _source.TrySetResult(false);
                     break;
@@ -79,19 +83,19 @@ partial class Store
                     _action(status);
                     break;
 
-                case Error:
+                case AppInstallState.Error:
                     _source.TrySetException(status.ErrorCode);
                     break;
 
-                case Canceled:
-                case Completed:
+                case AppInstallState.Canceled:
+                case AppInstallState.Completed:
                     break;
 
-                case Paused:
-                case ReadyToDownload:
-                case PausedLowBattery:
-                case PausedWiFiRequired:
-                case PausedWiFiRecommended:
+                case AppInstallState.Paused:
+                case AppInstallState.ReadyToDownload:
+                case AppInstallState.PausedLowBattery:
+                case AppInstallState.PausedWiFiRequired:
+                case AppInstallState.PausedWiFiRecommended:
                     _manager.MoveToFrontOfDownloadQueue(sender.ProductId, string.Empty);
                     break;
             }
