@@ -47,8 +47,7 @@ partial class Store
                     break;
 
                 case Canceled:
-                    if (!_task.IsFaulted)
-                        _source.TrySetResult(false);
+                    if (!_task.IsFaulted) _source.TrySetResult(false);
                     break;
             }
         }
@@ -62,12 +61,16 @@ partial class Store
                     _action(status);
                     break;
 
+                case Completed:
+                    _source.TrySetResult(true);
+                    break;
+
                 case Error:
                     _source.TrySetException(status.ErrorCode);
                     break;
 
                 case Canceled:
-                case Completed:
+                    if (!_task.IsFaulted) _source.TrySetResult(false);
                     break;
 
                 case Paused:
