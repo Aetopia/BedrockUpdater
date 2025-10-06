@@ -10,18 +10,17 @@ static class Program
 {
     static Program() => AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
     {
-        nint handle = 0; if (Application.Current?.MainWindow is { } @_)
+        nint handle = 0;
+        var exception = (Exception)args.ExceptionObject;
+
+        if (Application.Current?.MainWindow is { } @_)
         {
             WindowInteropHelper helper = new(_);
             handle = helper.Handle;
         }
 
-        var exception = (Exception)args.ExceptionObject;
-        while (exception.InnerException is not null)
-            exception = exception.InnerException;
-
-        var title = handle > 0 ? "Error" : "Bedrock Updater";
-        ShellMessageBox(0, handle, exception.Message, title, MB_ICONERROR);
+        while (exception.InnerException is not null) exception = exception.InnerException;
+        ShellMessageBox(0, handle, exception.Message, handle > 0 ? "Error" : "Bedrock Updater", MB_ICONERROR);
 
         Environment.Exit(1);
     };
