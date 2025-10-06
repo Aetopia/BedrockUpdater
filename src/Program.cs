@@ -10,9 +10,7 @@ static class Program
 {
     static Program() => AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
     {
-        nint handle = 0;
-
-        if (Application.Current?.MainWindow is { } @_)
+        nint handle = 0; if (Application.Current?.MainWindow is { } @_)
         {
             WindowInteropHelper helper = new(_);
             handle = helper.Handle;
