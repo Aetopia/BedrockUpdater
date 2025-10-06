@@ -25,7 +25,7 @@ partial class Store
             _source = new(); _task = _source.Task;
 
             _item.Completed += OnCompleted; _item.StatusChanged += OnStatusChanged;
-            _ = _task.ContinueWith(delegate{ _item.Cancel(); }, OnlyOnFaulted | ExecuteSynchronously);
+            _ = _task.ContinueWith(delegate { _item.Cancel(); }, OnlyOnFaulted | ExecuteSynchronously);
         }
 
         internal bool Cancel()

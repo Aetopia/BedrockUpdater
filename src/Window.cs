@@ -3,16 +3,13 @@ using System.Windows;
 using System.Windows.Media;
 using static System.String;
 using System.ComponentModel;
+using System.Threading.Tasks;
 using System.Windows.Controls;
+using Windows.ApplicationModel;
 using Windows.Management.Deployment;
 using static Windows.Management.Deployment.PackageTypes;
 using Windows.ApplicationModel.Store.Preview.InstallControl;
 using static Windows.ApplicationModel.Store.Preview.InstallControl.AppInstallState;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using Windows.Foundation;
-using System.Windows.Documents;
-using Windows.ApplicationModel;
 
 sealed class Window : System.Windows.Window
 {
@@ -100,10 +97,10 @@ sealed class Window : System.Windows.Window
         var tasks = new Task[packages.Length]; for (var index = 0; index < packages.Length; index++)
         {
             TaskCompletionSource<bool> source = new();
-          
+
             tasks[index] = source.Task;
             var operation = manager.RemovePackageAsync(packages[index].Id.FullName);
-          
+
             operation.Completed += delegate { source.TrySetResult(true); };
         }
 
