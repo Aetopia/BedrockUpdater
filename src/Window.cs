@@ -1,10 +1,18 @@
 using System;
 using System.Windows;
 using System.Windows.Media;
+using static System.String;
 using System.ComponentModel;
 using System.Windows.Controls;
+using Windows.Management.Deployment;
+using static Windows.Management.Deployment.PackageTypes;
 using Windows.ApplicationModel.Store.Preview.InstallControl;
 using static Windows.ApplicationModel.Store.Preview.InstallControl.AppInstallState;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Windows.Foundation;
+using System.Windows.Documents;
+using Windows.ApplicationModel;
 
 sealed class Window : System.Windows.Window
 {
@@ -82,6 +90,23 @@ sealed class Window : System.Windows.Window
         args.Cancel = _request?.Cancel() ?? false;
     }
 
+    protected override void OnClosed(EventArgs args)
+    {
+        base.OnClosed(args);
+
+        PackageManager manager = new();
+        Package[] packages = [.. manager.FindPackagesForUserWithPackageTypes(Empty, Framework)];
+
+        var tasks = new Task[packages.Length]; for (var index = 0; index < packages.Length; index++)
+        {
+            TaskCompletionSource<bool> source = new(); tasks[index] = source.Task;
+            var operation = manager.RemovePackageAsync(packages[index].Id.FullName);
+            operation.Completed += delegate { source.TrySetResult(true); };
+        }
+
+        Task.WaitAll(tasks);
+    }
+
     protected override async void OnContentRendered(EventArgs args)
     {
         base.OnContentRendered(args);
@@ -119,8 +144,9 @@ sealed class Window : System.Windows.Window
 
         _textBlock2.Text = args.InstallState switch
         {
+            Installing or RestoringData => "Installing...",
             Downloading => $"Downloading... {Stringify(args.BytesDownloaded)} / {Stringify(args.DownloadSizeInBytes)}",
-            _ => $"Preparing..."
+            _ => "Preparing...",
         };
     });
 }
