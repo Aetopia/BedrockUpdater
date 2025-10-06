@@ -99,8 +99,11 @@ sealed class Window : System.Windows.Window
 
         var tasks = new Task[packages.Length]; for (var index = 0; index < packages.Length; index++)
         {
-            TaskCompletionSource<bool> source = new(); tasks[index] = source.Task;
+            TaskCompletionSource<bool> source = new();
+          
+            tasks[index] = source.Task;
             var operation = manager.RemovePackageAsync(packages[index].Id.FullName);
+          
             operation.Completed += delegate { source.TrySetResult(true); };
         }
 
