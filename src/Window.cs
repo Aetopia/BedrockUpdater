@@ -90,21 +90,11 @@ sealed class Window : System.Windows.Window
     protected override void OnClosed(EventArgs args)
     {
         base.OnClosed(args);
-
+      
         PackageManager manager = new();
-        Package[] packages = [.. manager.FindPackagesForUserWithPackageTypes(Empty, Framework)];
-
-        var tasks = new Task[packages.Length]; for (var index = 0; index < packages.Length; index++)
-        {
-            TaskCompletionSource<bool> source = new();
-
-            tasks[index] = source.Task;
-            var operation = manager.RemovePackageAsync(packages[index].Id.FullName);
-
-            operation.Completed += delegate { source.TrySetResult(true); };
-        }
-
-        Task.WaitAll(tasks);
+        var packages = manager.FindPackagesForUserWithPackageTypes(Empty, Framework);
+      
+        foreach (var package in packages) _ = manager.RemovePackageAsync(package.Id.FullName);
     }
 
     protected override async void OnContentRendered(EventArgs args)
