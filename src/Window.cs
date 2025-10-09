@@ -87,16 +87,6 @@ sealed class Window : System.Windows.Window
         args.Cancel = _request?.Cancel() ?? false;
     }
 
-    protected override void OnClosed(EventArgs args)
-    {
-        base.OnClosed(args);
-      
-        PackageManager manager = new();
-        var packages = manager.FindPackagesForUserWithPackageTypes(Empty, Framework);
-      
-        foreach (var package in packages) _ = manager.RemovePackageAsync(package.Id.FullName);
-    }
-
     protected override async void OnContentRendered(EventArgs args)
     {
         base.OnContentRendered(args);
