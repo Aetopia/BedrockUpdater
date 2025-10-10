@@ -68,9 +68,7 @@ static partial class Store
         var item = await FindItemAsync(product);
         item ??= await GetItemAsync(product);
 
-        if (item is null)
-            return null;
-
+        if (item is null) return null;
         return new(item, action);
     }
 }
