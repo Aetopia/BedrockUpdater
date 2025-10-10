@@ -11,13 +11,13 @@ static partial class Store
 
     static async Task<AppInstallItem?> FindItemAsync(Product product, IEnumerable<AppInstallItem> items)
     {
+        await Task.Yield();
+
         var productId = product.ProductId;
 
         foreach (var item in items)
-        {
-            if (productId.Equals(item.ProductId, OrdinalIgnoreCase)) return item;
-            await Task.Yield();
-        }
+            if (productId.Equals(item.ProductId, OrdinalIgnoreCase))
+                return item;
 
         return null;
     }
