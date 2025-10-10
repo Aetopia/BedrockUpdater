@@ -10,22 +10,15 @@ static partial class Store
 {
     static readonly AppInstallManager _manager = new();
 
-    static async Task<AppInstallItem?> FindItemAsync(Product product, IEnumerable<AppInstallItem> items) => await Task.Run(() =>
+    static async Task<AppInstallItem?> FindItemAsync(Product product) => await Task.Run(() =>
     {
         var productId = product.ProductId;
+
+        IEnumerable<AppInstallItem> items = _manager.AppInstallItems;
+        items = items.Concat(_manager.AppInstallItemsWithGroupSupport);
+
         return items.FirstOrDefault(_ => productId.Equals(_.ProductId, OrdinalIgnoreCase));
     });
-
-    static async Task<AppInstallItem?> FindItemAsync(Product product)
-    {
-        var tasks = new Task<AppInstallItem?>[2];
-
-        tasks[0] = FindItemAsync(product, _manager.AppInstallItems);
-        tasks[1] = FindItemAsync(product, _manager.AppInstallItemsWithGroupSupport);
-
-        await Task.WhenAll(tasks);
-        return await tasks[0] ?? await tasks[1];
-    }
 
     static async Task GetEntitlementsAsync(Product product)
     {
