@@ -4,6 +4,8 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using static System.StringComparison;
 using Windows.ApplicationModel.Store.Preview.InstallControl;
+using System.Windows.Threading;
+using static System.Threading.Thread;
 
 static partial class Store
 {
@@ -11,12 +13,16 @@ static partial class Store
 
     static async Task<AppInstallItem?> FindItemAsync(Product product, IEnumerable<AppInstallItem> items)
     {
+        await Dispatcher.Yield();
+
         var productId = product.ProductId;
 
         foreach (var item in items)
         {
-            await Task.Yield();
-            if (productId.Equals(item.ProductId, OrdinalIgnoreCase)) return item;
+            if (productId.Equals(item.ProductId, OrdinalIgnoreCase))
+                return item;
+
+            await Dispatcher.Yield();
         }
 
         return null;
