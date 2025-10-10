@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using static PInvoke;
+using static System.String;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using static System.StringComparison;
@@ -25,8 +26,8 @@ static partial class Store
         var tasks = new Task[2];
         var productId = product.ProductId;
 
-        tasks[0] = _manager.GetFreeUserEntitlementAsync(productId, string.Empty, string.Empty).AsTask();
-        tasks[1] = _manager.GetFreeDeviceEntitlementAsync(productId, string.Empty, string.Empty).AsTask();
+        tasks[0] = _manager.GetFreeUserEntitlementAsync(productId, Empty, Empty).AsTask();
+        tasks[1] = _manager.GetFreeDeviceEntitlementAsync(productId, Empty, Empty).AsTask();
 
         await Task.WhenAll(tasks);
     }
@@ -39,7 +40,7 @@ static partial class Store
         GetPackagesByPackageFamily(packageFamilyName, out var count, new(), out _, new());
         if (count > 0) return await _manager.UpdateAppByPackageFamilyNameAsync(packageFamilyName);
 
-        return await _manager.StartAppInstallAsync(productId, string.Empty, false, false);
+        return await _manager.StartAppInstallAsync(productId, Empty, false, false);
     }
 
     internal static async Task<Request?> GetAsync(Product product, Action<AppInstallStatus> action)
