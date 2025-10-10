@@ -1,7 +1,7 @@
 using System;
+using System.Linq;
 using static PInvoke;
 using System.Threading.Tasks;
-using System.Windows.Threading;
 using System.Collections.Generic;
 using static System.StringComparison;
 using Windows.ApplicationModel.Store.Preview.InstallControl;
@@ -10,18 +10,11 @@ static partial class Store
 {
     static readonly AppInstallManager _manager = new();
 
-    static async Task<AppInstallItem?> FindItemAsync(Product product, IEnumerable<AppInstallItem> items)
+    static async Task<AppInstallItem?> FindItemAsync(Product product, IEnumerable<AppInstallItem> items) => await Task.Run(() =>
     {
-        await Dispatcher.Yield();
-
-        var productId = product.ProductId; foreach (var item in items)
-        {
-            if (productId.Equals(item.ProductId, OrdinalIgnoreCase)) return item;
-            await Dispatcher.Yield();
-        }
-
-        return null;
-    }
+        var productId = product.ProductId;
+        return items.FirstOrDefault(_ => productId.Equals(_.ProductId, OrdinalIgnoreCase));
+    });
 
     static async Task<AppInstallItem?> FindItemAsync(Product product)
     {
