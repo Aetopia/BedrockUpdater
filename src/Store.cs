@@ -11,9 +11,9 @@ static partial class Store
 
     static async Task<AppInstallItem?> FindItemAsync(Product product, IEnumerable<AppInstallItem> items)
     {
-        var productId = product.ProductId;
+        await Task.Yield();
 
-        foreach (var item in items)
+        var productId = product.ProductId; foreach (var item in items)
         {
             await Task.Yield();
             if (productId.Equals(item.ProductId, OrdinalIgnoreCase)) return item;
@@ -24,16 +24,22 @@ static partial class Store
 
     static async Task<AppInstallItem?> FindItemAsync(Product product)
     {
+        await Task.Yield();
+
         var tasks = new Task<AppInstallItem?>[2];
 
         tasks[0] = FindItemAsync(product, _manager.AppInstallItems);
         tasks[1] = FindItemAsync(product, _manager.AppInstallItemsWithGroupSupport);
 
-        await Task.WhenAll(tasks); return await tasks[0] ?? await tasks[1];
+        await Task.WhenAll(tasks);
+
+        return await tasks[0] ?? await tasks[1];
     }
 
     static async Task GetEntitlementsAsync(Product product)
     {
+        await Task.Yield();
+
         var tasks = new Task[2];
         var productId = product.ProductId;
 
@@ -45,6 +51,8 @@ static partial class Store
 
     static async Task<AppInstallItem?> GetItemAsync(Product product)
     {
+        await Task.Yield();
+
         var productId = product.ProductId;
         var packageFamilyName = product.PackageFamilyName;
         GetPackagesByPackageFamily(packageFamilyName, out var count, new(), out _, new());
@@ -55,7 +63,7 @@ static partial class Store
 
     internal static async Task<Request?> GetAsync(Product product, Action<AppInstallStatus> action)
     {
-        await GetEntitlementsAsync(product);
+        await Task.Yield(); await GetEntitlementsAsync(product);
         var item = await FindItemAsync(product) ?? await GetItemAsync(product);
         return item is null ? null : new(item, action);
     }
