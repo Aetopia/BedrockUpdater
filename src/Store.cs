@@ -31,7 +31,6 @@ static partial class Store
         tasks[1] = FindItemAsync(product, _manager.AppInstallItemsWithGroupSupport);
 
         await Task.WhenAll(tasks);
-
         return await tasks[0] ?? await tasks[1];
     }
 
