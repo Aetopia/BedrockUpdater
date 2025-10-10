@@ -14,13 +14,9 @@ static partial class Store
     {
         await Dispatcher.Yield();
 
-        var productId = product.ProductId;
-
-        foreach (var item in items)
+        var productId = product.ProductId; foreach (var item in items)
         {
-            if (productId.Equals(item.ProductId, OrdinalIgnoreCase))
-                return item;
-
+            if (productId.Equals(item.ProductId, OrdinalIgnoreCase)) return item;
             await Dispatcher.Yield();
         }
 
