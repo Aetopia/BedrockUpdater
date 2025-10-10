@@ -54,16 +54,23 @@ static partial class Store
     {
         var productId = product.ProductId;
         var packageFamilyName = product.PackageFamilyName;
-        GetPackagesByPackageFamily(packageFamilyName, out var count, new(), out _, new());
 
+        GetPackagesByPackageFamily(packageFamilyName, out var count, new(), out _, new());
         if (count > 0) return await _manager.UpdateAppByPackageFamilyNameAsync(packageFamilyName);
+
         return await _manager.StartAppInstallAsync(productId, string.Empty, false, false);
     }
 
     internal static async Task<Request?> GetAsync(Product product, Action<AppInstallStatus> action)
     {
         await GetEntitlementsAsync(product);
-        var item = await FindItemAsync(product) ?? await GetItemAsync(product);
-        return item is null ? null : new(item, action);
+
+        var item = await FindItemAsync(product);
+        item ??= await GetItemAsync(product);
+
+        if (item is null)
+            return null;
+
+        return new(item, action);
     }
 }
