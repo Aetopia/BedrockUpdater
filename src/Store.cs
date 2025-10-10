@@ -1,11 +1,10 @@
 using System;
 using static PInvoke;
 using System.Threading.Tasks;
+using System.Windows.Threading;
 using System.Collections.Generic;
 using static System.StringComparison;
 using Windows.ApplicationModel.Store.Preview.InstallControl;
-using System.Windows.Threading;
-using static System.Threading.Thread;
 
 static partial class Store
 {
