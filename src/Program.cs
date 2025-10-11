@@ -20,7 +20,7 @@ static class Program
         }
 
         while (exception.InnerException is not null) exception = exception.InnerException;
-        ShellMessageBox(0, handle, exception.Message, handle > 0 ? "Error" : "Bedrock Updater", MB_ICONERROR);
+        ShellMessageBox(0, handle, exception.Message, handle > 0 ? "Bedrock Updater: Error" : "Bedrock Updater", MB_ICONERROR);
 
         Environment.Exit(1);
     };
