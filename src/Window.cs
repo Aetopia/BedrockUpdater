@@ -45,7 +45,7 @@ sealed class Window : System.Windows.Window
     internal Window(bool value)
     {
         _text = value ? "Updating Preview..." : "Updating Release...";
-        _products = [value ? Product.GamingServices : Product.XboxIdentityProvider, value ? Product.MinecraftWindowsBeta : Product.MinecraftUWP];
+        _products = [Product.GamingServices, value ? Product.MinecraftWindowsBeta : Product.MinecraftUWP];
 
         Title = "Bedrock Updater";
         Icon = global::Resources.GetImageSource("Application.ico");
