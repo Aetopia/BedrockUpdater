@@ -9,8 +9,6 @@ partial class Store
 {
     internal sealed class Request
     {
-        readonly Task<bool> _task;
-
         readonly AppInstallItem _item;
 
         readonly Action<AppInstallStatus> _action;
@@ -19,22 +17,24 @@ partial class Store
 
         internal Request(AppInstallItem item, Action<AppInstallStatus> action)
         {
+            _item = item;
+            _source = new();
+            _action = action;
+
+            _item.Completed += OnCompleted;
+            _item.StatusChanged += OnStatusChanged;
+            _source.Task.ContinueWith((_) => _item.Cancel(), OnlyOnFaulted | ExecuteSynchronously);
+
             _manager.MoveToFrontOfDownloadQueue(item.ProductId, string.Empty);
-
-            _item = item; _action = action;
-            _source = new(); _task = _source.Task;
-
-            _item.Completed += OnCompleted; _item.StatusChanged += OnStatusChanged;
-            _ = _task.ContinueWith(delegate { _item.Cancel(); }, OnlyOnFaulted | ExecuteSynchronously);
         }
 
         internal bool Cancel()
         {
-            if (_task.IsCompleted) return false;
+            if (_source.Task.IsCompleted) return false;
             _item.Cancel(); return true;
         }
 
-        internal TaskAwaiter<bool> GetAwaiter() => _task.GetAwaiter();
+        internal TaskAwaiter<bool> GetAwaiter() => _source.Task.GetAwaiter();
 
         void OnCompleted(AppInstallItem sender, object args)
         {
@@ -45,30 +45,23 @@ partial class Store
                     break;
 
                 case Canceled:
-                    if (!_task.IsFaulted) _source.TrySetResult(false);
+                    if (!_source.Task.IsFaulted) _source.TrySetResult(false);
                     break;
             }
         }
 
         void OnStatusChanged(AppInstallItem sender, object args)
         {
-            var status = sender.GetCurrentStatus();
-            switch (status.InstallState)
+            var status = sender.GetCurrentStatus(); switch (status.InstallState)
             {
-                default:
-                    _action(status);
-                    break;
-
-                case Completed:
-                    _source.TrySetResult(true);
-                    break;
-
                 case Error:
                     _source.TrySetException(status.ErrorCode);
                     break;
 
-                case Canceled:
-                    if (!_task.IsFaulted) _source.TrySetResult(false);
+                case Pending:
+                case Installing:
+                case Downloading:
+                    _action(status);
                     break;
 
                 case Paused:

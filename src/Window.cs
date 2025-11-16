@@ -5,7 +5,6 @@ using static System.String;
 using System.ComponentModel;
 using System.Threading.Tasks;
 using System.Windows.Controls;
-using Windows.ApplicationModel;
 using Windows.Management.Deployment;
 using static Windows.Management.Deployment.PackageTypes;
 using Windows.ApplicationModel.Store.Preview.InstallControl;
@@ -15,26 +14,9 @@ sealed class Window : System.Windows.Window
 {
     enum Unit { B, KB, MB, GB }
 
-    readonly TextBlock _textBlock1 = new()
-    {
-        Foreground = Brushes.White
-    };
+    readonly TextBlock _textBlock1 = new(), _textBlock2 = new() { Text = $"{Pending}..." };
 
-    readonly TextBlock _textBlock2 = new()
-    {
-        Text = "Preparing...",
-        Foreground = Brushes.White
-    };
-
-    readonly ProgressBar _progressBar = new()
-    {
-        Width = 359,
-        Height = 23,
-        IsIndeterminate = true,
-        BorderThickness = new(),
-        Foreground = new SolidColorBrush(Color.FromRgb(0, 133, 66)),
-        Background = new SolidColorBrush(Color.FromRgb(14, 14, 14))
-    };
+    readonly ProgressBar _progressBar = new() { Width = 359, Height = 23, IsIndeterminate = true };
 
     readonly string _text;
 
@@ -44,7 +26,7 @@ sealed class Window : System.Windows.Window
 
     internal Window(bool value)
     {
-        _text = value ? "Updating Preview..." : "Updating Release...";
+        _text = $"Updating {(value ? "Preview" : "Release")}...";
         _products = [Product.GamingServices, value ? Product.MinecraftWindowsBeta : Product.MinecraftUWP];
 
         Title = "Bedrock Updater";
@@ -56,7 +38,6 @@ sealed class Window : System.Windows.Window
 
         SizeToContent = SizeToContent.WidthAndHeight;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
-        Background = new SolidColorBrush(Color.FromRgb(30, 30, 30));
 
         Canvas _canvas = new() { Width = 381, Height = 115 };
 
@@ -90,32 +71,23 @@ sealed class Window : System.Windows.Window
     protected override void OnClosed(EventArgs args)
     {
         base.OnClosed(args);
-
         PackageManager manager = new();
-        var packages = manager.FindPackagesForUserWithPackageTypes(Empty, Framework);
-
-        foreach (var package in packages)
-        {
-            var packageFullName = package.Id.FullName;
-            _ = manager.RemovePackageAsync(packageFullName);
-        }
+        foreach (var package in manager.FindPackagesForUserWithPackageTypes(Empty, Framework)) _ = manager.RemovePackageAsync(package.Id.FullName);
     }
 
     protected override async void OnContentRendered(EventArgs args)
     {
-        await Task.Yield(); base.OnContentRendered(args);
+        base.OnContentRendered(args);
 
-        for (var index = 0; index < _products.Length; index++)
+        foreach (var product in _products)
         {
-            _textBlock1.Text = $"{_text} {index + 1} / {_products.Length}";
-
-            _request = await Store.GetAsync(_products[index], Action);
+            _request = await Store.GetAsync(product, Action);
             if (_request is { } @_) if (!await _) Close();
 
             _request = null;
             _progressBar.Value = 0;
             _progressBar.IsIndeterminate = true;
-            _textBlock2.Text = $"Preparing...";
+            _textBlock2.Text = $"{Pending}...";
         }
 
         Close();
@@ -130,17 +102,22 @@ sealed class Window : System.Windows.Window
 
     void Action(AppInstallStatus args) => Dispatcher.Invoke(() =>
     {
-        if (_progressBar.Value != args.PercentComplete)
+        switch (args.InstallState)
         {
-            _progressBar.IsIndeterminate = false;
-            _progressBar.Value = args.PercentComplete;
+            case Pending:
+            case Installing:
+                _textBlock2.Text = $"{args.InstallState}...";
+                break;
+
+            case Downloading:
+                _textBlock2.Text = $"{Downloading}... {Stringify(args.BytesDownloaded)} / {Stringify(args.DownloadSizeInBytes)}";
+                break;
         }
 
-        _textBlock2.Text = args.InstallState switch
+        if (_progressBar.Value != args.PercentComplete)
         {
-            Installing or RestoringData => "Installing...",
-            Downloading => $"Downloading... {Stringify(args.BytesDownloaded)} / {Stringify(args.DownloadSizeInBytes)}",
-            _ => "Preparing...",
-        };
+            _progressBar.Value = args.PercentComplete;
+            _progressBar.IsIndeterminate = args.InstallState is Pending;
+        }
     });
 }
