@@ -1,9 +1,7 @@
 using System;
 using System.Windows;
-using System.Windows.Media;
 using static System.String;
 using System.ComponentModel;
-using System.Threading.Tasks;
 using System.Windows.Controls;
 using Windows.Management.Deployment;
 using static Windows.Management.Deployment.PackageTypes;
@@ -71,8 +69,11 @@ sealed class Window : System.Windows.Window
     protected override void OnClosed(EventArgs args)
     {
         base.OnClosed(args);
+        
         PackageManager manager = new();
-        foreach (var package in manager.FindPackagesForUserWithPackageTypes(Empty, Framework)) _ = manager.RemovePackageAsync(package.Id.FullName);
+
+        foreach (var package in manager.FindPackagesForUserWithPackageTypes(Empty, Framework))
+            _ = manager.RemovePackageAsync(package.Id.FullName);
     }
 
     protected override async void OnContentRendered(EventArgs args)
