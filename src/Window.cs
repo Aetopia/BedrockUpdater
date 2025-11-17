@@ -1,10 +1,7 @@
 using System;
 using System.Windows;
-using static System.String;
 using System.ComponentModel;
 using System.Windows.Controls;
-using Windows.Management.Deployment;
-using static Windows.Management.Deployment.PackageTypes;
 using Windows.ApplicationModel.Store.Preview.InstallControl;
 using static Windows.ApplicationModel.Store.Preview.InstallControl.AppInstallState;
 
@@ -64,16 +61,6 @@ sealed class Window : System.Windows.Window
         _progressBar.IsIndeterminate = true;
 
         args.Cancel = _request?.Cancel() ?? false;
-    }
-
-    protected override void OnClosed(EventArgs args)
-    {
-        base.OnClosed(args);
-        
-        PackageManager manager = new();
-
-        foreach (var package in manager.FindPackagesForUserWithPackageTypes(Empty, Framework))
-            _ = manager.RemovePackageAsync(package.Id.FullName);
     }
 
     protected override async void OnContentRendered(EventArgs args)
