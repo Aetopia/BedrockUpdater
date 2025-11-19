@@ -1,6 +1,5 @@
 using System;
 using System.Linq;
-using static PInvoke;
 using System.Windows;
 using System.Threading;
 using System.Globalization;
@@ -14,7 +13,7 @@ static class Program
         if (Application.Current?.MainWindow is { } window) handle = new WindowInteropHelper(window).Handle;
 
         while (exception.InnerException is not null) exception = exception.InnerException;
-        ShellMessageBox(0, handle, exception.Message, handle > 0 ? "Error" : "Bedrock Updater", MB_ICONERROR);
+        PInvoke.ShellMessageBox(0, handle, exception.Message, handle > 0 ? "Error" : "Bedrock Updater", PInvoke.MB_ICONERROR);
 
         Environment.Exit(1);
     };

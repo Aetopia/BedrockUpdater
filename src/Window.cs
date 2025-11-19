@@ -3,13 +3,12 @@ using System.Windows;
 using System.ComponentModel;
 using System.Windows.Controls;
 using Windows.ApplicationModel.Store.Preview.InstallControl;
-using static Windows.ApplicationModel.Store.Preview.InstallControl.AppInstallState;
 
 sealed class Window : System.Windows.Window
 {
     enum Unit { B, KB, MB, GB }
 
-    readonly TextBlock _textBlock1 = new(), _textBlock2 = new() { Text = $"{Pending}..." };
+    readonly TextBlock _textBlock1 = new(), _textBlock2 = new() { Text = $"{AppInstallState.Pending}..." };
 
     readonly ProgressBar _progressBar = new() { Width = 359, Height = 23, IsIndeterminate = true };
 
@@ -17,12 +16,12 @@ sealed class Window : System.Windows.Window
 
     Store.Request? _request;
 
-    readonly Product[] _products;
+    readonly Store.Product[] _products;
 
     internal Window(bool value)
     {
         _text = $"Updating {(value ? "Preview" : "Release")}...";
-        _products = [Product.GamingServices, value ? Product.MinecraftWindowsBeta : Product.MinecraftUWP];
+        _products = [Store.Product.GamingServices, value ? Store.Product.MinecraftWindowsBeta : Store.Product.MinecraftUWP];
 
         Title = "Bedrock Updater";
         Icon = global::Resources.GetImageSource("Application.ico");
@@ -75,7 +74,7 @@ sealed class Window : System.Windows.Window
             _request = null;
             _progressBar.Value = 0;
             _progressBar.IsIndeterminate = true;
-            _textBlock2.Text = $"{Pending}...";
+            _textBlock2.Text = $"{AppInstallState.Pending}...";
         }
 
         Close();
@@ -92,20 +91,20 @@ sealed class Window : System.Windows.Window
     {
         switch (args.InstallState)
         {
-            case Pending:
-            case Installing:
+            case AppInstallState.Pending:
+            case AppInstallState.Installing:
                 _textBlock2.Text = $"{args.InstallState}...";
                 break;
 
-            case Downloading:
-                _textBlock2.Text = $"{Downloading}... {Stringify(args.BytesDownloaded)} / {Stringify(args.DownloadSizeInBytes)}";
+            case AppInstallState.Downloading:
+                _textBlock2.Text = $"{args.InstallState}... {Stringify(args.BytesDownloaded)} / {Stringify(args.DownloadSizeInBytes)}";
                 break;
         }
 
         if (_progressBar.Value != args.PercentComplete)
         {
             _progressBar.Value = args.PercentComplete;
-            _progressBar.IsIndeterminate = args.InstallState is Pending;
+            _progressBar.IsIndeterminate = args.InstallState is AppInstallState.Pending;
         }
     });
 }
