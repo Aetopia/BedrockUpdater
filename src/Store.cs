@@ -1,11 +1,18 @@
 using System;
 using System.Linq;
+using System.Security;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.Store.Preview.InstallControl;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 static class Store
 {
+    [SuppressUnmanagedCodeSecurity]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("Kernel32", CharSet = CharSet.Unicode, SetLastError = true)]
+    static extern int GetPackagesByPackageFamily(string packageFamilyName, out uint count, nint packageFullNames, out uint bufferLength, nint buffer);
+
     static readonly AppInstallManager s_manager = new();
 
     internal static async Task<Request?> GetAsync(Product product, Action<AppInstallStatus> action)
@@ -14,7 +21,7 @@ static class Store
 
         if (item is null)
         {
-            PInvoke.GetPackagesByPackageFamily(product.PackageFamilyName, out var count, 0, out _, 0);
+            GetPackagesByPackageFamily(product.PackageFamilyName, out var count, 0, out _, 0);
             if (count > 0) item = await s_manager.UpdateAppByPackageFamilyNameAsync(product.PackageFamilyName);
             else item = await s_manager.StartAppInstallAsync(product.ProductId, string.Empty, false, false);
         }

@@ -3,6 +3,8 @@ using System.Windows;
 using System.ComponentModel;
 using System.Windows.Controls;
 using Windows.ApplicationModel.Store.Preview.InstallControl;
+using System.Reflection;
+using System.Windows.Media.Imaging;
 
 sealed class Window : System.Windows.Window
 {
@@ -23,9 +25,10 @@ sealed class Window : System.Windows.Window
         _text = $"Updating {(value ? "Preview" : "Release")}...";
         _products = [Store.Product.GamingServices, value ? Store.Product.MinecraftWindowsBeta : Store.Product.MinecraftUWP];
 
-        Title = "Bedrock Updater";
-        Icon = global::Resources.GetImageSource("Application.ico");
+        using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("Application.ico"))
+            Icon = BitmapFrame.Create(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
 
+        Title = "Bedrock Updater";
         UseLayoutRounding = true;
         SnapsToDevicePixels = true;
         ResizeMode = ResizeMode.NoResize;
