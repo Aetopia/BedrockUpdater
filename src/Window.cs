@@ -1,10 +1,10 @@
 using System;
 using System.Windows;
+using System.Reflection;
 using System.ComponentModel;
 using System.Windows.Controls;
-using Windows.ApplicationModel.Store.Preview.InstallControl;
-using System.Reflection;
 using System.Windows.Media.Imaging;
+using Windows.ApplicationModel.Store.Preview.InstallControl;
 
 sealed class Window : System.Windows.Window
 {
