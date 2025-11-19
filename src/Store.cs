@@ -1,10 +1,9 @@
 using System;
-using System.Linq;
 using System.Security;
 using System.Threading.Tasks;
-using Windows.ApplicationModel.Store.Preview.InstallControl;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
+using Windows.ApplicationModel.Store.Preview.InstallControl;
 
 static class Store
 {
@@ -17,16 +16,16 @@ static class Store
 
     internal static async Task<Request?> GetAsync(Product product, Action<AppInstallStatus> action)
     {
-        var item = s_manager.AppInstallItems.FirstOrDefault(_ => _.ProductId.Equals(product.ProductId, StringComparison.OrdinalIgnoreCase));
+        GetPackagesByPackageFamily(product.PackageFamilyName, out var count, 0, out _, 0);
 
-        if (item is null)
+        if (count > 0)
         {
-            GetPackagesByPackageFamily(product.PackageFamilyName, out var count, 0, out _, 0);
-            if (count > 0) item = await s_manager.UpdateAppByPackageFamilyNameAsync(product.PackageFamilyName);
-            else item = await s_manager.StartAppInstallAsync(product.ProductId, string.Empty, false, false);
+            var item = await s_manager.UpdateAppByPackageFamilyNameAsync(product.PackageFamilyName);
+            return item is { } ? new(item, action) : null;
         }
 
-        return item is { } ? new(item, action) : null;
+        return new(await s_manager.StartAppInstallAsync(product.ProductId, string.Empty, false, false), action);
+
     }
 
     internal sealed class Product
@@ -53,32 +52,20 @@ static class Store
         internal Request(AppInstallItem item, Action<AppInstallStatus> action)
         {
             (_item, _action, _source) = (item, action, new());
-
-            item.Completed += Completed; item.StatusChanged += StatusChanged;
-            s_manager.MoveToFrontOfDownloadQueue(item.ProductId, string.Empty);
-
             _source.Task.ContinueWith((_) => item.Cancel(), TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
+            item.Completed += Completed; item.StatusChanged += StatusChanged; s_manager.MoveToFrontOfDownloadQueue(item.ProductId, string.Empty);
         }
 
         internal TaskAwaiter<bool> GetAwaiter() => _source.Task.GetAwaiter();
 
-        internal bool Cancel()
-        {
-            if (_source.Task.IsCompleted) return false;
-            _item.Cancel(); return true;
-        }
+        internal bool Cancel() { if (_source.Task.IsCompleted) return false; _item.Cancel(); return true; }
 
         void Completed(AppInstallItem sender, object args)
         {
             switch (sender.GetCurrentStatus().InstallState)
             {
-                case AppInstallState.Completed:
-                    _source.TrySetResult(true);
-                    break;
-
-                case AppInstallState.Canceled:
-                    if (!_source.Task.IsFaulted) _source.TrySetResult(false);
-                    break;
+                case AppInstallState.Completed: _source.TrySetResult(true); break;
+                case AppInstallState.Canceled: if (!_source.Task.IsFaulted) _source.TrySetResult(false); break;
             }
         }
 
@@ -86,19 +73,9 @@ static class Store
         {
             var status = sender.GetCurrentStatus(); switch (status.InstallState)
             {
-                case AppInstallState.Error:
-                    _source.TrySetException(status.ErrorCode);
-                    break;
-
-                case AppInstallState.Paused:
-                    s_manager.MoveToFrontOfDownloadQueue(sender.ProductId, string.Empty);
-                    break;
-
-                case AppInstallState.Pending:
-                case AppInstallState.Installing:
-                case AppInstallState.Downloading:
-                    _action(status);
-                    break;
+                case AppInstallState.Error: _source.TrySetException(status.ErrorCode); break;
+                case AppInstallState.Paused: s_manager.MoveToFrontOfDownloadQueue(sender.ProductId, string.Empty); break;
+                case AppInstallState.Pending or AppInstallState.Downloading or AppInstallState.Installing: _action(status); break;
             }
         }
     }
