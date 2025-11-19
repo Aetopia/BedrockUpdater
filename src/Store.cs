@@ -90,18 +90,14 @@ static class Store
                     _source.TrySetException(status.ErrorCode);
                     break;
 
+                case AppInstallState.Paused:
+                    s_manager.MoveToFrontOfDownloadQueue(sender.ProductId, string.Empty);
+                    break;
+
                 case AppInstallState.Pending:
                 case AppInstallState.Installing:
                 case AppInstallState.Downloading:
                     _action(status);
-                    break;
-
-                case AppInstallState.Paused:
-                case AppInstallState.ReadyToDownload:
-                case AppInstallState.PausedLowBattery:
-                case AppInstallState.PausedWiFiRequired:
-                case AppInstallState.PausedWiFiRecommended:
-                    s_manager.MoveToFrontOfDownloadQueue(sender.ProductId, string.Empty);
                     break;
             }
         }
