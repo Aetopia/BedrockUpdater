@@ -72,12 +72,10 @@ sealed class Window : System.Windows.Window
         foreach (var product in _products)
         {
             _request = await Store.GetAsync(product, Action);
-            if (_request is { } @_) if (!await _) Close();
+            if (_request is { } @_) if (!await _) break;
 
-            _request = null;
-            _progressBar.Value = 0;
-            _progressBar.IsIndeterminate = true;
-            _textBlock2.Text = $"{Pending}...";
+            _request = null; _textBlock2.Text = $"{Pending}...";
+            _progressBar.Value = 0; _progressBar.IsIndeterminate = true;
         }
 
         Close();
