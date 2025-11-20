@@ -82,6 +82,6 @@ static class Store
 
         internal TaskAwaiter<bool> GetAwaiter() => _source.Task.GetAwaiter();
 
-        internal bool Cancel() { _item.Cancel(); return !_source.Task.IsCompleted; }
+        internal bool Cancel() { if (_source.Task.IsCompleted) return false; _item.Cancel(); return true; }
     }
 }
