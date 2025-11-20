@@ -50,11 +50,8 @@ sealed class Window : System.Windows.Window
 
     protected override void OnClosing(CancelEventArgs args)
     {
-        base.OnClosing(args); if (_request?.Cancel() ?? false)
-        {
-            _textBlock2.Text = "Cancelling..."; args.Cancel = true;
-            _progressBar.Value = 0; _progressBar.IsIndeterminate = true;
-        }
+        base.OnClosing(args);
+        args.Cancel = _request?.Cancel() ?? false;
     }
 
     protected override async void OnContentRendered(EventArgs args)
