@@ -4,6 +4,8 @@ using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using Windows.ApplicationModel.Store.Preview.InstallControl;
+using static System.Threading.Tasks.TaskContinuationOptions;
+using static Windows.ApplicationModel.Store.Preview.InstallControl.AppInstallState;
 
 static class Store
 {
@@ -11,6 +13,8 @@ static class Store
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [DllImport("Kernel32", CharSet = CharSet.Unicode, SetLastError = true)]
     static extern int GetPackagesByPackageFamily(string packageFamilyName, out uint count, nint packageFullNames, out uint bufferLength, nint buffer);
+
+    static Store() => Task.Run(() => { foreach (var item in s_manager.AppInstallItems) if (item.GetCurrentStatus().InstallState is Error) item.Cancel(); });
 
     static readonly AppInstallManager s_manager = new();
 
@@ -52,31 +56,32 @@ static class Store
         internal Request(AppInstallItem item, Action<AppInstallStatus> action)
         {
             (_item, _action, _source) = (item, action, new());
-            _source.Task.ContinueWith((_) => item.Cancel(), TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
-            item.Completed += Completed; item.StatusChanged += StatusChanged; s_manager.MoveToFrontOfDownloadQueue(item.ProductId, string.Empty);
+            _source.Task.ContinueWith((_) => item.Cancel(), OnlyOnFaulted | ExecuteSynchronously);
+
+            item.Completed += (sender, args) =>
+            {
+                switch (sender.GetCurrentStatus().InstallState)
+                {
+                    case Completed: _source.TrySetResult(true); break;
+                    case Canceled: if (!_source.Task.IsFaulted) _source.TrySetResult(false); break;
+                }
+            };
+
+            item.StatusChanged += (sender, args) =>
+            {
+                var status = sender.GetCurrentStatus(); switch (status.InstallState)
+                {
+                    case Error: _source.TrySetException(status.ErrorCode); break;
+                    case Pending or Downloading or Installing: _action(status); break;
+                    case Paused or ReadyToDownload: s_manager.MoveToFrontOfDownloadQueue(sender.ProductId, string.Empty); break;
+                }
+            };
+
+            s_manager.MoveToFrontOfDownloadQueue(item.ProductId, string.Empty);
         }
 
         internal TaskAwaiter<bool> GetAwaiter() => _source.Task.GetAwaiter();
 
-        internal bool Cancel() { if (_source.Task.IsCompleted) return false; _item.Cancel(); return true; }
-
-        void Completed(AppInstallItem sender, object args)
-        {
-            switch (sender.GetCurrentStatus().InstallState)
-            {
-                case AppInstallState.Completed: _source.TrySetResult(true); break;
-                case AppInstallState.Canceled: if (!_source.Task.IsFaulted) _source.TrySetResult(false); break;
-            }
-        }
-
-        void StatusChanged(AppInstallItem sender, object args)
-        {
-            var status = sender.GetCurrentStatus(); switch (status.InstallState)
-            {
-                case AppInstallState.Error: _source.TrySetException(status.ErrorCode); break;
-                case AppInstallState.Paused: s_manager.MoveToFrontOfDownloadQueue(sender.ProductId, string.Empty); break;
-                case AppInstallState.Pending or AppInstallState.Downloading or AppInstallState.Installing: _action(status); break;
-            }
-        }
+        internal bool Cancel() { _item.Cancel(); return !_source.Task.IsCompleted; }
     }
 }

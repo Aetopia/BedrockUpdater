@@ -5,12 +5,13 @@ using System.ComponentModel;
 using System.Windows.Controls;
 using System.Windows.Media.Imaging;
 using Windows.ApplicationModel.Store.Preview.InstallControl;
+using static Windows.ApplicationModel.Store.Preview.InstallControl.AppInstallState;
 
 sealed class Window : System.Windows.Window
 {
     enum Unit { B, KB, MB, GB }
 
-    readonly TextBlock _textBlock1 = new(), _textBlock2 = new() { Text = $"{AppInstallState.Pending}..." };
+    readonly TextBlock _textBlock1 = new(), _textBlock2 = new() { Text = $"{Pending}..." };
 
     readonly ProgressBar _progressBar = new() { Width = 359, Height = 23, IsIndeterminate = true };
 
@@ -56,8 +57,12 @@ sealed class Window : System.Windows.Window
     protected override void OnClosing(CancelEventArgs args)
     {
         base.OnClosing(args);
-        _progressBar.Value = 0; _progressBar.IsIndeterminate = true;
-        _textBlock2.Text = "Cancelling..."; args.Cancel = _request?.Cancel() ?? false;
+
+        _progressBar.Value = 0;
+        _progressBar.IsIndeterminate = true;
+
+        _textBlock2.Text = "Cancelling...";
+        args.Cancel = _request?.Cancel() ?? false;
     }
 
     protected override async void OnContentRendered(EventArgs args)
@@ -72,7 +77,7 @@ sealed class Window : System.Windows.Window
             _request = null;
             _progressBar.Value = 0;
             _progressBar.IsIndeterminate = true;
-            _textBlock2.Text = $"{AppInstallState.Pending}...";
+            _textBlock2.Text = $"{Pending}...";
         }
 
         Close();
@@ -89,14 +94,8 @@ sealed class Window : System.Windows.Window
     {
         switch (args.InstallState)
         {
-            case AppInstallState.Pending:
-            case AppInstallState.Installing:
-                _textBlock2.Text = $"{args.InstallState}...";
-                break;
-
-            case AppInstallState.Downloading:
-                _textBlock2.Text = $"{args.InstallState}... {Stringify(args.BytesDownloaded)} / {Stringify(args.DownloadSizeInBytes)}";
-                break;
+            case Pending or Installing: _textBlock2.Text = $"{args.InstallState}..."; break;
+            case Downloading: _textBlock2.Text = $"{args.InstallState}... {Stringify(args.BytesDownloaded)} / {Stringify(args.DownloadSizeInBytes)}"; break;
         }
 
         if (_progressBar.Value != args.PercentComplete)
