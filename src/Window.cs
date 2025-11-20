@@ -15,15 +15,13 @@ sealed class Window : System.Windows.Window
 
     readonly ProgressBar _progressBar = new() { Width = 359, Height = 23, IsIndeterminate = true };
 
-    readonly string _text;
-
     Store.Request? _request;
 
     readonly Store.Product[] _products;
 
     internal Window(bool value)
     {
-        _text = $"Updating {(value ? "Preview" : "Release")}...";
+        _textBlock1.Text = $"Updating {(value ? "Preview" : "Release")}...";
         _products = [Store.Product.GamingServices, value ? Store.Product.MinecraftWindowsBeta : Store.Product.MinecraftUWP];
 
         using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("Application.ico"))
@@ -37,11 +35,10 @@ sealed class Window : System.Windows.Window
         SizeToContent = SizeToContent.WidthAndHeight;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
-        Canvas _canvas = new() { Width = 381, Height = 115 };
-
-        _canvas.Children.Add(_textBlock1);
-        _canvas.Children.Add(_textBlock2);
-        _canvas.Children.Add(_progressBar);
+        Content = new Canvas { Width = 381, Height = 115 };
+        ((Canvas)Content).Children.Add(_textBlock1);
+        ((Canvas)Content).Children.Add(_textBlock2);
+        ((Canvas)Content).Children.Add(_progressBar);
 
         Canvas.SetLeft(_textBlock1, 11);
         Canvas.SetTop(_textBlock1, 15);
@@ -49,20 +46,15 @@ sealed class Window : System.Windows.Window
         Canvas.SetTop(_textBlock2, 84);
         Canvas.SetLeft(_progressBar, 11);
         Canvas.SetTop(_progressBar, 46);
-
-        Content = _canvas;
-        _textBlock1.Text = _text;
     }
 
     protected override void OnClosing(CancelEventArgs args)
     {
-        base.OnClosing(args);
-
-        _progressBar.Value = 0;
-        _progressBar.IsIndeterminate = true;
-
-        _textBlock2.Text = "Cancelling...";
-        args.Cancel = _request?.Cancel() ?? false;
+        base.OnClosing(args); if (_request?.Cancel() ?? false)
+        {
+            _textBlock2.Text = "Cancelling..."; args.Cancel = true;
+            _progressBar.Value = 0; _progressBar.IsIndeterminate = true;
+        }
     }
 
     protected override async void OnContentRendered(EventArgs args)
@@ -98,8 +90,8 @@ sealed class Window : System.Windows.Window
 
         if (_progressBar.Value != args.PercentComplete)
         {
-            _progressBar.Value = args.PercentComplete;
             _progressBar.IsIndeterminate = args.InstallState is AppInstallState.Pending;
+            _progressBar.Value = _progressBar.IsIndeterminate ? 0 : args.PercentComplete;
         }
     });
 }
