@@ -9,15 +9,11 @@ using static Windows.ApplicationModel.Store.Preview.InstallControl.AppInstallSta
 
 sealed class Window : System.Windows.Window
 {
-    enum Unit { B, KB, MB, GB }
-
+    Store.Request? _request; readonly Store.Product[] _products;
     readonly TextBlock _textBlock1 = new(), _textBlock2 = new() { Text = $"{Pending}..." };
-
     readonly ProgressBar _progressBar = new() { Width = 359, Height = 23, IsIndeterminate = true };
 
-    Store.Request? _request;
-
-    readonly Store.Product[] _products;
+    enum Unit { B, KB, MB, GB }
 
     internal Window(bool value)
     {
@@ -28,12 +24,9 @@ sealed class Window : System.Windows.Window
             Icon = BitmapFrame.Create(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
 
         Title = "Bedrock Updater";
-        UseLayoutRounding = true;
-        SnapsToDevicePixels = true;
-        ResizeMode = ResizeMode.NoResize;
-
-        SizeToContent = SizeToContent.WidthAndHeight;
+        UseLayoutRounding = true; SnapsToDevicePixels = true;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
+        ResizeMode = ResizeMode.NoResize; SizeToContent = SizeToContent.WidthAndHeight;
 
         Content = new Canvas { Width = 381, Height = 115 };
         ((Canvas)Content).Children.Add(_textBlock1);
@@ -51,7 +44,7 @@ sealed class Window : System.Windows.Window
     protected override void OnClosing(CancelEventArgs args)
     {
         base.OnClosing(args);
-        args.Cancel = _request?.Cancel() ?? false;
+        args.Cancel = _request?.Pause() ?? false;
     }
 
     protected override async void OnContentRendered(EventArgs args)

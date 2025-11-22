@@ -44,28 +44,13 @@ Download, update & install Minecraft: Bedrock Edition without the Microsoft Stor
 Download the latest release from [GitHub Releases](https://github.com/Aetopia/BedrockUpdater/releases/latest).
 
 ### [Scoop](https://scoop.sh/)
-#### Install
 ```
 scoop bucket add games
 scoop install bedrockupdater
 ```
-
-### Minecraft: Bedrock Edition
-Run the following script in PowerShell to uninstall Minecraft: Bedrock Edition & Xbox Identity Provider.
-
-```powershell
-$ProgressPreference = $ErrorActionPreference = "SilentlyContinue"
-
-Get-AppxPackage | ForEach-Object { if ($_.Name -in @("Microsoft.MinecraftUWP", "Microsoft.MinecraftWindowsBeta", "Microsoft.XboxIdentityProvider")) { Remove-AppxPackage $_ } }
-
-$ProgressPreference = $ErrorActionPreference = "Continue"
-```
-
-## Building
-1. Download the following:
-    - [.NET SDK](https://dotnet.microsoft.com/en-us/download)
-    - [.NET Framework 4.8.1 Developer Pack](https://dotnet.microsoft.com/en-us/download/dotnet-framework/thank-you/net481-developer-pack-offline-installer)
-
+## Build
+1. Download the [.NET SDK](https://dotnet.microsoft.com/en-us/download).
+    
 2. Run the following command to compile:
 
     ```cmd
