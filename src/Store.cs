@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using Windows.ApplicationModel.Store.Preview.InstallControl;
+using static System.Threading.Tasks.TaskContinuationOptions;
 using static Windows.ApplicationModel.Store.Preview.InstallControl.AppInstallState;
 
 static class Store
@@ -56,13 +57,14 @@ static class Store
         internal Request(AppInstallItem item, Action<AppInstallStatus> action)
         {
             s_manager.MoveToFrontOfDownloadQueue(item.ProductId, string.Empty);
+            _source.Task.ContinueWith(_ => item.Cancel(), OnlyOnFaulted | ExecuteSynchronously);
 
             item.Completed += (sender, args) =>
             {
                 switch (sender.GetCurrentStatus().InstallState)
                 {
                     case Completed: _source.TrySetResult(true); break;
-                    case Canceled: _source.TrySetResult(false); break;
+                    case Canceled: if (!_source.Task.IsFaulted) _source.TrySetResult(false); break;
                 }
             };
 
