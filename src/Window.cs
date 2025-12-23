@@ -43,8 +43,11 @@ sealed class Window : System.Windows.Window
 
     protected override void OnClosing(CancelEventArgs args)
     {
-        base.OnClosing(args);
-        args.Cancel = _request?.Pause() ?? false;
+        base.OnClosing(args); if (_request?.Cancel() ?? false)
+        {
+            args.Cancel = true; _textBlock2.Text = $"{Pending}...";
+            _progressBar.Value = 0; _progressBar.IsIndeterminate = true;
+        }
     }
 
     protected override async void OnContentRendered(EventArgs args)
@@ -80,7 +83,7 @@ sealed class Window : System.Windows.Window
 
         if (_progressBar.Value != args.PercentComplete)
         {
-            _progressBar.IsIndeterminate = args.InstallState is AppInstallState.Pending;
+            _progressBar.IsIndeterminate = args.InstallState is Pending;
             _progressBar.Value = _progressBar.IsIndeterminate ? 0 : args.PercentComplete;
         }
     });
