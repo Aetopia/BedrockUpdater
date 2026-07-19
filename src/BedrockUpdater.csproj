@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net481</TargetFramework>
+    <TargetFramework>net48</TargetFramework>
 
     <UseWPF>true</UseWPF>
     <Optimize>true</Optimize>
@@ -16,11 +16,11 @@
     <ApplicationManifest>Resources/Application.manifest</ApplicationManifest>
     <ApplicationIcon>Resources/Application.ico</ApplicationIcon>
 
-    <AssemblyVersion>3.4.0.0</AssemblyVersion>
+    <AssemblyVersion>3.4.0.1</AssemblyVersion>
     <AssemblyTitle>Bedrock Updater</AssemblyTitle>
     <Product>Bedrock Updater</Product>
     <Company>Aetopia</Company>
-    <Copyright>Copyright (C) 2024 - 25 Aetopia</Copyright>
+    <Copyright>Copyright (C) 2024 - 26 Aetopia</Copyright>
 
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <GenerateAssemblyInformationalVersionAttribute>false</GenerateAssemblyInformationalVersionAttribute>
